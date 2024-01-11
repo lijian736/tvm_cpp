@@ -14,8 +14,8 @@ bash build_docker.sh
 
 ### Step 3. build TVM .so libs
  1. enter the docker container
- 1. edit the third_party/tvm/cmake/config.cmake, change `set(USE_LLVM OFF)` to `set(USE_LLVM ON)`
- 2. build TVM so libs
+ 2. edit the third_party/tvm/cmake/config.cmake, change `set(USE_LLVM OFF)` to `set(USE_LLVM ON)`
+ 3. build TVM so libs  
    run the following scripts. if the build successfully, libtvm.so and libtvm_runtime.so will be generated.
 
     ```
