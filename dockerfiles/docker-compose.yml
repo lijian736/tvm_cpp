@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+      simple_ai_service:
+            image: tvm_cpp:latest
+            network_mode: "bridge"
+            tty: true
+            restart: always
+            build:
+                  context: .
+                  dockerfile: Dockerfile.tvm_cpp
+            container_name: tvm_cpp_container
+            user: 0:0
+            volumes:
+                  - ../:/code/tvm_cpp
+
