@@ -26,6 +26,15 @@ namespace relay_utils {
 Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const onnx::TensorProto& proto_tensor,
                                     tvm::relay::Constant& relay);
 
+/**
+ * @brief Convert the ONNX node proto to TVM relay expressions
+ * 
+ * @param proto_node the ONNX node proto
+ * @param relay output parameter. the generated relay expression
+ * @return Status 
+ */
+Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay);
+
 }    // namespace relay_utils
 }    // namespace tvm_cpp
 

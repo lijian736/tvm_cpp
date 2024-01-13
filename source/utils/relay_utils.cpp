@@ -30,7 +30,7 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
     }
 
     // It's a good idea to generate empty NDArray using PackedFunc 'runtime.TVMArrayAllocWithScope'
-    // shape, data type, device
+    // shape, data type, device, only float supported now
     tvm::runtime::NDArray initializer = tvm::runtime::NDArray::Empty(
         tvm::runtime::ShapeTuple(tensor_shape), {DLDataTypeCode::kDLFloat, 32, 1}, {DLDeviceType::kDLCPU, 0});
 
@@ -71,6 +71,11 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
     tvm::relay::Span span;
     relay = (*gen_func)(initializer, span);
 
+    return Status::ok();
+}
+
+
+Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay){
     return Status::ok();
 }
 
