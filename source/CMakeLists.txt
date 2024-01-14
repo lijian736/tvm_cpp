@@ -13,12 +13,14 @@ include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/tvm/3rdparty/compile
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/tvm/3rdparty/picojson")
 
 aux_source_directory(./utils AUX_SRC_LIST)
+aux_source_directory(./onnx_op AUX_OP_LIST)
+aux_source_directory(./onnx_op/ops AUX_ONNX_OPS_LIST)
 
 find_library(TVM_LIBRARY         NAMES tvm         PATHS ${CMAKE_SOURCE_DIR}/third_party/tvm/build/ PATH_SUFFIXES lib)
 find_library(TVM_RUNTIME_LIBRARY NAMES tvm_runtime PATHS ${CMAKE_SOURCE_DIR}/third_party/tvm/build/ PATH_SUFFIXES lib)
 
 function(GENERATE_EXECUTABLE name)
-    add_executable(${name} ${name}.cpp ${CMAKE_SOURCE_DIR}/third_party/onnx_proto/onnx.proto3.pb.cc ${AUX_SRC_LIST})
+    add_executable(${name} ${name}.cpp ${CMAKE_SOURCE_DIR}/third_party/onnx_proto/onnx.proto3.pb.cc ${AUX_SRC_LIST} ${AUX_OP_LIST} ${AUX_ONNX_OPS_LIST})
     target_link_libraries(${name} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY})
     target_compile_definitions(${name} PRIVATE DMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>)
 endfunction()
