@@ -4,6 +4,7 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 #add include folder
 include_directories("${CMAKE_SOURCE_DIR}/third_party/onnx_proto")
 include_directories("${CMAKE_SOURCE_DIR}/third_party/tvm/include")
+include_directories("${CMAKE_SOURCE_DIR}/source")
 
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/tvm/3rdparty/dlpack/include")
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/tvm/3rdparty/dmlc-core/include")
