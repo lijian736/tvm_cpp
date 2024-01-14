@@ -23,8 +23,17 @@ namespace relay_utils {
  * @param relay output parameter. the generated relay expression
  * @return Status
  */
-Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const onnx::TensorProto& proto_tensor,
+Status convert_initializer_to_relay(const tvm::runtime::PackedFunc* gen_func, const onnx::TensorProto& proto_tensor,
                                     tvm::relay::Constant& relay);
+
+/**
+ * @brief Parse the graph proto initializers to TVM relay expressions
+ * 
+ * @param onnx_graph onnx graph proto
+ * @param relays the relay map. key: the initializer name, value: the relay expression
+ * @return Status 
+ */
+Status parse_graph_initializers_to_relays(const onnx::GraphProto& onnx_graph, std::unordered_map<std::string, tvm::relay::Constant>& relays);
 
 /**
  * @brief Convert the ONNX node proto to TVM relay expressions

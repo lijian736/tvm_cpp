@@ -5,7 +5,7 @@
 namespace tvm_cpp {
 namespace relay_utils {
 
-Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const onnx::TensorProto& proto_tensor,
+Status convert_initializer_to_relay(const tvm::runtime::PackedFunc* gen_func, const onnx::TensorProto& proto_tensor,
                                     tvm::relay::Constant& relay) {
     if (!gen_func) {
         return Status(StatusCode::INVALID_PARAM, "gen_func is nullptr");
@@ -13,7 +13,9 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
 
     // check the tensor data location
     if (proto_tensor.data_location() == onnx::TensorProto_DataLocation_EXTERNAL) {
-        return Status(StatusCode::NOT_IMPLEMENTED, "external tensor data is not supported now");
+        std::ostringstream oss;
+        oss << "external tensor data is not supported now: " << proto_tensor.name();
+        return Status(StatusCode::NOT_IMPLEMENTED, oss.str());
     }
 
     // the tensor shape
@@ -44,7 +46,9 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
                     // copy the data
                     initializer.CopyFromBytes(tensor_data, proto_tensor.raw_data().length());
                 } else {
-                    return Status(StatusCode::INVALID_MODEL, "Invalid tensor raw data length with its dims");
+                    std::ostringstream oss;
+                    oss << "Invalid tensor float data length with its dims: " << proto_tensor.name();
+                    return Status(StatusCode::INVALID_MODEL, oss.str());
                 }
             } else {
                 std::vector<float> float_data(element_num, 0);
@@ -56,14 +60,16 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
                     // copy the data
                     initializer.CopyFromBytes(float_data.data(), proto_tensor.float_data_size() * sizeof(float));
                 } else {
-                    return Status(StatusCode::INVALID_MODEL, "Invalid tensor float data length with its dims");
+                    std::ostringstream oss;
+                    oss << "Invalid tensor float data length with its dims: " << proto_tensor.name();
+                    return Status(StatusCode::INVALID_MODEL, oss.str());
                 }
             }
         }
 
         default: {
             std::ostringstream oss;
-            oss << "not support data type for proto tensor";
+            oss << "not support data type for proto tensor: " << proto_tensor.name();
             return Status(StatusCode::NOT_IMPLEMENTED, oss.str());
         }
     }
@@ -74,10 +80,32 @@ Status convert_initializer_to_relay(tvm::runtime::PackedFunc* gen_func, const on
     return Status::ok();
 }
 
+Status parse_graph_initializers_to_relays(const onnx::GraphProto& onnx_graph,
+                                          std::unordered_map<std::string, tvm::relay::Constant>& relays) {
+    // Constant in relay
+    const tvm::runtime::PackedFunc* const_gen = tvm::runtime::Registry::Get("relay.ir.Constant");
+    if (!const_gen) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Constant not found");
+    }
 
-Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay){
+    for (auto& initializer : onnx_graph.initializer()) {
+        tvm::relay::Constant relay_const;
+        auto ret = convert_initializer_to_relay(const_gen, initializer, relay_const);
+        if (!ret.is_ok()) {
+            return ret;
+        }
+
+        // add. if the initializer has already existed in the graph, replace it.
+        auto insert_ret = relays.emplace(initializer.name(), relay_const);
+        if (!insert_ret.second) {
+            insert_ret.first->second = std::move(relay_const);
+        }
+    }
+
     return Status::ok();
 }
+
+Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay) { return Status::ok(); }
 
 }    // namespace relay_utils
 }    // namespace tvm_cpp
