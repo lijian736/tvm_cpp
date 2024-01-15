@@ -6,6 +6,7 @@
 namespace tvm_cpp {
 namespace onnx_op {
 
+// https://github.com/onnx/onnx/blob/main/docs/Operators.md#Transpose
 class TransposeParser : public IOnnxOpParser {
 public:
     TransposeParser() = default;

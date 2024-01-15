@@ -3,6 +3,7 @@
 namespace tvm_cpp {
 namespace onnx_op {
 
+// https://github.com/onnx/onnx/blob/main/docs/Operators.md#Concat
 Status ConcatParser::parse_op(const onnx::NodeProto& proto_node,
                               const std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                               tvm::relay::Expr& relay) {
@@ -18,20 +19,24 @@ Status ConcatParser::parse_op(const onnx::NodeProto& proto_node,
     }
 
     // get the attributes for concat op
-    auto attr_size = proto_node.attribute_size();
-    for (decltype(attr_size) i = 0; i < attr_size; ++i) {
-        const auto& attr = proto_node.attribute(i);
+    std::unordered_map<std::string, const onnx::AttributeProto*> attrs_map;
+    get_attributes_map(proto_node, attrs_map);
+
+    int64_t axis;
+    auto ret = get_attr<int64_t>("axis", &axis, attrs_map);
+    if(!ret.is_ok()){
+        return ret;
     }
 
     // get the inputs
-    auto input_size = proto_node.input_size();
-    for (decltype(input_size) i = 0; i < input_size; ++i) {
+    int input_size = proto_node.input_size();
+    for (int i = 0; i < input_size; ++i) {
         const auto& input = proto_node.input(i);
     }
 
     // get the outputs
-    auto output_size = proto_node.output_size();
-    for (decltype(output_size) i = 0; i < output_size; ++i) {
+    int output_size = proto_node.output_size();
+    for (int i = 0; i < output_size; ++i) {
         const auto& output = proto_node.output(i);
     }
 

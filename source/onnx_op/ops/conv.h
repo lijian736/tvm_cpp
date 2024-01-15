@@ -6,6 +6,7 @@
 namespace tvm_cpp {
 namespace onnx_op {
 
+// https://github.com/onnx/onnx/blob/main/docs/Operators.md#Conv
 class Conv2DParser : public IOnnxOpParser {
 public:
     Conv2DParser() = default;

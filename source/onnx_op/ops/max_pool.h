@@ -6,6 +6,7 @@
 namespace tvm_cpp {
 namespace onnx_op {
 
+// https://github.com/onnx/onnx/blob/main/docs/Operators.md#MaxPool
 class MaxPool2DParser : public IOnnxOpParser {
 public:
     MaxPool2DParser() = default;
