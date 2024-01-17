@@ -31,12 +31,12 @@ public:
      * @brief Parse the ONNX op to relay expression
      *
      * @param proto_node the ONNX op proto
-     * @param expressions the relay expression map. key: the relay expression name. value: the relay expression
+     * @param expressions input/output parameter. the relay expression map. key: the relay expression name. value: the relay expression
      * @param relay output parameter. the relay expression
      * @return Status
      */
     virtual Status parse_op(const onnx::NodeProto& proto_node,
-                            const std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                            std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                             tvm::relay::Expr& relay) = 0;
 
     /**

@@ -5,7 +5,7 @@ namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Transpose
 Status TransposeParser::parse_op(const onnx::NodeProto& proto_node,
-                                 const std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                                 std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                                  tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "Transpose") {

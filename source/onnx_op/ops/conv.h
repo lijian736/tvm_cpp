@@ -13,7 +13,7 @@ public:
     virtual ~Conv2DParser() = default;
 
     virtual Status parse_op(const onnx::NodeProto& proto_node,
-                            const std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                            std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                             tvm::relay::Expr& relay) override;
 };
 

@@ -1,7 +1,9 @@
 #ifndef _H_TVM_CPP_UTILS_RELAY_UTILS_H_
 #define _H_TVM_CPP_UTILS_RELAY_UTILS_H_
 
+#include <tvm/ir/module.h>
 #include <tvm/relay/expr.h>
+#include <tvm/relay/transform.h>
 #include <tvm/runtime/memory.h>
 #include <tvm/runtime/object.h>
 #include <tvm/runtime/registry.h>
@@ -54,6 +56,15 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
  * @return Status
  */
 Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay);
+
+/**
+ * @brief infer relay expr shape
+ *
+ * @param expr the relay expression
+ * @param shape  output parameter. the relay expression shape
+ * @return Status
+ */
+Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape);
 
 }    // namespace relay_utils
 }    // namespace tvm_cpp

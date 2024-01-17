@@ -175,6 +175,49 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
     return Status::ok();
 }
 
+Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape) {
+    // type infer
+    const tvm::runtime::PackedFunc* type_infer = tvm::runtime::Registry::Get("relay._transform.InferType");
+    if (!type_infer) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay._transform.InferType expression not found");
+    }
+
+    // pass run
+    const tvm::runtime::PackedFunc* pass_run = tvm::runtime::Registry::Get("transform.RunPass");
+    if (!pass_run) {
+        return Status(StatusCode::RUNTIME_ERROR, "transform.pass_run expression not found");
+    }
+
+    tvm::IRModule mod = tvm::IRModule::FromExpr(expr);
+
+    // get the type-infer pass
+    tvm::relay::transform::Pass infer_type_pass = (*type_infer)();
+    // run the pass
+    tvm::IRModule mod_new = (*pass_run)(infer_type_pass, mod);
+
+    tvm::relay::Expr main_expr = mod_new->Lookup("main").as<tvm::relay::FunctionNode>()->body;
+    tvm::Type result_type = main_expr->checked_type();
+    tvm::runtime::Optional<tvm::TensorType> type = result_type.as<tvm::TensorType>();
+    if (type != nullptr) {
+        tvm::TensorType tensor_type = type.value();
+
+        const tvm::DataType& data_type = tensor_type->dtype;
+        const tvm::runtime::Array<tvm::PrimExpr>& expr_shape = tensor_type->shape;
+
+        for (int i = 0; i < expr_shape.size(); ++i) {
+            const tvm::PrimExpr& exp = expr_shape[i];
+            const tvm::IntImmNode* node = exp.as<tvm::IntImmNode>();
+            if (node) {
+                shape.emplace_back(node->value);
+            } else {
+                return Status(StatusCode::RUNTIME_ERROR, "Invalid shape");
+            }
+        }
+    }
+
+    return Status::ok();
+}
+
 Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay) { return Status::ok(); }
 
 }    // namespace relay_utils
