@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "utils.h"
+
 namespace tvm_cpp {
 namespace relay_utils {
 
@@ -65,6 +67,8 @@ Status convert_initializer_to_relay(const tvm::runtime::PackedFunc* gen_func, co
                     return Status(StatusCode::INVALID_MODEL, oss.str());
                 }
             }
+
+            break;
         }
 
         default: {
@@ -88,15 +92,18 @@ Status parse_graph_initializers_to_relays(const onnx::GraphProto& onnx_graph,
         return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Constant not found");
     }
 
-    for (auto& initializer : onnx_graph.initializer()) {
+    for (const auto& initializer : onnx_graph.initializer()) {
         tvm::relay::Expr relay_const;
         auto ret = convert_initializer_to_relay(const_gen, initializer, relay_const);
         if (!ret.is_ok()) {
             return ret;
         }
 
+        std::string initializer_name = initializer.name();
+        tvm_cpp::utils::trim(initializer_name);
+
         // add. if the initializer has already existed in the graph, replace it.
-        auto insert_ret = relays.emplace(initializer.name(), relay_const);
+        auto insert_ret = relays.emplace(initializer_name, relay_const);
         if (!insert_ret.second) {
             insert_ret.first->second = std::move(relay_const);
         }
@@ -116,7 +123,9 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
     // iterate the graph inputs
     for (const auto& input : onnx_graph.input()) {
         // the graph input name
-        const auto& input_name = input.name();
+        auto input_name = input.name();
+        tvm_cpp::utils::trim(input_name);
+
         if (!input_name.empty()) {
             // graph input type
             const onnx::TypeProto& type = input.type();
@@ -126,7 +135,7 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
                 // element type
                 auto elem_type = tensor_type.elem_type();
                 if (elem_type != onnx::TensorProto_DataType::TensorProto_DataType_FLOAT) {
-                    return Status(StatusCode::NOT_IMPLEMENTED, "Graph float input is not implemented");
+                    return Status(StatusCode::NOT_IMPLEMENTED, "Only float graph input is supporetd now.");
                 }
 
                 const onnx::TensorShapeProto shape_proto = tensor_type.shape();
