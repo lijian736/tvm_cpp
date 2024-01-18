@@ -1,5 +1,7 @@
 #include "max_pool.h"
 
+#include "utils/relay_utils.h"
+
 namespace tvm_cpp {
 namespace onnx_op {
 
@@ -41,15 +43,106 @@ Status MaxPool2DParser::parse_op(const onnx::NodeProto& proto_node,
 
     // get the inputs
     int input_size = proto_node.input_size();
-    for (int i = 0; i < input_size; ++i) {
-        const auto& input = proto_node.input(i);
+    if (input_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid inputs of MaxPool: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
     // get the outputs
     int output_size = proto_node.output_size();
-    for (int i = 0; i < output_size; ++i) {
-        const auto& output = proto_node.output(i);
+    if (output_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid outputs of MaxPool: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
+
+    const std::string& input = proto_node.input(0);
+    const std::string& output = proto_node.output(0);
+
+    auto input_iter = expressions.find(input);
+    if (input_iter == expressions.end()) {
+        std::ostringstream oss;
+        oss << "Input not found, MaxPool: " << proto_node.name() << " input: " << input;
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    std::vector<int64_t> input_shape;
+    tvm_cpp::relay_utils::infer_relay_shape(input_iter->second, input_shape);
+
+    int dims = input_shape.size() - 2;
+    if (dims != 2) {
+        return Status(StatusCode::INVALID_MODEL, "Only support 2D MaxPool");
+    }
+
+    // set default value for dilations
+    if (dilations.size() == 0) {
+        // count, value
+        dilations.assign(2, 1);
+    }
+
+    // check the dilations for 2d maxpool
+    if (dilations.size() != 2) {
+        std::ostringstream oss;
+        oss << "Invalid dilations, MaxPool: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    // set the default value for padding
+    if (pads.size() == 0) {
+        pads.assign(4, 0);
+    }
+
+    // check the padding for 2d maxpool
+    if (pads.size() != 4) {
+        std::ostringstream oss;
+        oss << "Invalid padding, MaxPool: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    // set the default value for strides
+    if (strides.size() == 0) {
+        strides.assign(2, 1);
+    }
+
+    // check the strides for 2d maxpool
+    if (strides.size() != 2) {
+        std::ostringstream oss;
+        oss << "Invalid strides, MaxPool: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    // do the 2d max pooling
+    tvm::runtime::Array<tvm::relay::IndexExpr> pool_size;
+    tvm::runtime::Array<tvm::relay::IndexExpr> strides_exp;
+    tvm::runtime::Array<tvm::relay::IndexExpr> dilation_exp;
+    tvm::runtime::Array<tvm::relay::IndexExpr> padding_exp;
+
+    tvm::runtime::String layout = "NCHW";
+    tvm::runtime::String out_layout = "";
+
+    std::for_each(strides.begin(), strides.end(), [&](int64_t val) { strides_exp.push_back((int32_t)val); });
+
+    std::for_each(pads.begin(), pads.end(), [&](int64_t val) { padding_exp.push_back((int32_t)val); });
+
+    std::for_each(dilations.begin(), dilations.end(), [&](int64_t val) { dilation_exp.push_back((int32_t)val); });
+
+    std::for_each(kernel_shape.begin(), kernel_shape.end(), [&](int64_t val) { pool_size.push_back((int32_t)val); });
+
+    tvm::relay::Expr out_expr = (*max_pool2d)(input_iter->second, pool_size, strides_exp, dilation_exp, padding_exp,
+                                              layout, out_layout, (ceil_mode ? true : false));
+
+    auto status = fold_const(out_expr);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    // add to expressions
+    auto ret = expressions.emplace(output, out_expr);
+    if (!ret.second) {
+        ret.first->second = out_expr;
+    }
+    relay = out_expr;
 
     return Status::ok();
 }
