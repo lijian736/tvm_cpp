@@ -57,6 +57,14 @@ public:
      */
     void get_attributes_map(const onnx::NodeProto& proto_node,
                             std::unordered_map<std::string, const onnx::AttributeProto*>& attrs_map);
+
+    /**
+     * @brief fold const relay expressions
+     *
+     * @param expr input/output parameter. the relay
+     * @return Status
+     */
+    virtual Status fold_const(tvm::relay::Expr& expr);
 };
 
 /**

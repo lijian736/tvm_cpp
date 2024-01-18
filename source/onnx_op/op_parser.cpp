@@ -26,6 +26,18 @@ void IOnnxOpParser::get_attributes_map(const onnx::NodeProto& proto_node,
     }
 }
 
+Status IOnnxOpParser::fold_const(tvm::relay::Expr& expr) {
+    // get the fold const relay function
+    const tvm::runtime::PackedFunc* fold = tvm::runtime::Registry::Get("relay._transform.FoldConstantExpr");
+    if (!fold) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay._transform.FoldConstantExpr expression not found");
+    }
+
+    expr = (*fold)(expr, tvm::IRModule(), false);
+
+    return Status::ok();
+}
+
 OnnxOpParserRegister* OnnxOpParserRegister::get_instance() {
     static OnnxOpParserRegister instance;
     return &instance;
