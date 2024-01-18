@@ -19,9 +19,16 @@ aux_source_directory(./onnx_op/ops AUX_ONNX_OPS_LIST)
 find_library(TVM_LIBRARY         NAMES tvm         PATHS ${CMAKE_SOURCE_DIR}/third_party/tvm/build/ PATH_SUFFIXES lib)
 find_library(TVM_RUNTIME_LIBRARY NAMES tvm_runtime PATHS ${CMAKE_SOURCE_DIR}/third_party/tvm/build/ PATH_SUFFIXES lib)
 
+# the utils lib name
+set(UTILS_NAME utils)
+
+add_library(${UTILS_NAME} SHARED ${AUX_SRC_LIST} ${AUX_OP_LIST} ${AUX_ONNX_OPS_LIST})
+target_link_libraries(${UTILS_NAME} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY})
+target_compile_definitions(${UTILS_NAME} PRIVATE DMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>)
+
 function(GENERATE_EXECUTABLE name)
-    add_executable(${name} ${name}.cpp ${CMAKE_SOURCE_DIR}/third_party/onnx_proto/onnx.proto3.pb.cc ${AUX_SRC_LIST} ${AUX_OP_LIST} ${AUX_ONNX_OPS_LIST})
-    target_link_libraries(${name} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY})
+    add_executable(${name} ${name}.cpp ${CMAKE_SOURCE_DIR}/third_party/onnx_proto/onnx.proto3.pb.cc)
+    target_link_libraries(${name} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY} ${UTILS_NAME})
     target_compile_definitions(${name} PRIVATE DMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>)
 endfunction()
 
