@@ -123,5 +123,7 @@ Status Conv2DParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string Conv2DParser::get_name() { return "Conv"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp

@@ -5,8 +5,7 @@ namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Add
 Status AddParser::parse_op(const onnx::NodeProto& proto_node,
-                           std::unordered_map<std::string, tvm::relay::Expr>& expressions,
-                           tvm::relay::Expr& relay) {
+                           std::unordered_map<std::string, tvm::relay::Expr>& expressions, tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "Add") {
         return Status(StatusCode::INVALID_PARAM, "Invalid Add parameter");
@@ -32,6 +31,8 @@ Status AddParser::parse_op(const onnx::NodeProto& proto_node,
 
     return Status::ok();
 }
+
+std::string AddParser::get_name() { return "Add"; }
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp

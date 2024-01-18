@@ -39,5 +39,7 @@ Status TransposeParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string TransposeParser::get_name() { return "Transpose"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp

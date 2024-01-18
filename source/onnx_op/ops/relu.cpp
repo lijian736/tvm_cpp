@@ -33,5 +33,7 @@ Status ReluParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string ReluParser::get_name() { return "Relu"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp

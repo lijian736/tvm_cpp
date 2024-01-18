@@ -48,5 +48,7 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string Resize2DParser::get_name() { return "Resize"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp

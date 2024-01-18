@@ -5,8 +5,7 @@ namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Concat
 Status ConcatParser::parse_op(const onnx::NodeProto& proto_node,
-                              std::unordered_map<std::string, tvm::relay::Expr>& expressions,
-                              tvm::relay::Expr& relay) {
+                              std::unordered_map<std::string, tvm::relay::Expr>& expressions, tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "Concat") {
         return Status(StatusCode::INVALID_PARAM, "Invalid Concat parameter");
@@ -24,7 +23,7 @@ Status ConcatParser::parse_op(const onnx::NodeProto& proto_node,
 
     int64_t axis;
     auto ret = get_attr<int64_t>("axis", &axis, attrs_map);
-    if(!ret.is_ok()){
+    if (!ret.is_ok()) {
         return ret;
     }
 
@@ -42,6 +41,8 @@ Status ConcatParser::parse_op(const onnx::NodeProto& proto_node,
 
     return Status::ok();
 }
+
+std::string ConcatParser::get_name() { return "Concat"; }
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp

@@ -39,5 +39,7 @@ Status ReshapeParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string ReshapeParser::get_name() { return "Reshape"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp

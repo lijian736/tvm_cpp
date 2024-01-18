@@ -12,6 +12,7 @@ public:
     MaxPool2DParser() = default;
     virtual ~MaxPool2DParser() = default;
 
+    virtual std::string get_name() override;
     virtual Status parse_op(const onnx::NodeProto& proto_node,
                             std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                             tvm::relay::Expr& relay) override;

@@ -33,5 +33,7 @@ Status MulParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
+std::string MulParser::get_name() { return "Mul"; }
+
 }    // namespace onnx_op
 }    // namespace tvm_cpp
