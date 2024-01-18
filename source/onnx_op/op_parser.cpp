@@ -40,7 +40,17 @@ IOnnxOpParser* OnnxOpParserRegister::get_op_parser(const std::string& op_type) {
     return nullptr;
 }
 
-void OnnxOpParserRegister::register_all_supported_ops() { this->register_op<Conv2DParser>(); }
+void OnnxOpParserRegister::register_all_supported_ops() {
+    this->register_op<Conv2DParser>();
+    this->register_op<AddParser>();
+    this->register_op<ConcatParser>();
+    this->register_op<MaxPool2DParser>();
+    this->register_op<MulParser>();
+    this->register_op<ReluParser>();
+    this->register_op<ReshapeParser>();
+    this->register_op<Resize2DParser>();
+    this->register_op<TransposeParser>();
+}
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp
