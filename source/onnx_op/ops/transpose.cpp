@@ -26,15 +26,46 @@ Status TransposeParser::parse_op(const onnx::NodeProto& proto_node,
 
     // get the inputs
     int input_size = proto_node.input_size();
-    for (int i = 0; i < input_size; ++i) {
-        const auto& input = proto_node.input(i);
+    if (input_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid inputs of Transpose: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
     // get the outputs
     int output_size = proto_node.output_size();
-    for (int i = 0; i < output_size; ++i) {
-        const auto& output = proto_node.output(i);
+    if (output_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid outputs of Transpose: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
+
+    const std::string& input = proto_node.input(0);
+    const std::string& output = proto_node.output(0);
+
+    auto input_iter = expressions.find(input);
+    if (input_iter == expressions.end()) {
+        std::ostringstream oss;
+        oss << "Input not found, Transpose: " << proto_node.name() << " input: " << input;
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    tvm::runtime::Array<tvm::Integer> axes;
+    std::for_each(perm.begin(), perm.end(), [&](int64_t val) { axes.push_back((int32_t)val); });
+
+    tvm::relay::Expr result_expr = (*transpose)(input_iter->second, axes);
+
+    auto status = fold_const(result_expr);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    // add to expressions
+    auto ret = expressions.emplace(output, result_expr);
+    if (!ret.second) {
+        ret.first->second = result_expr;
+    }
+    relay = result_expr;
 
     return Status::ok();
 }
