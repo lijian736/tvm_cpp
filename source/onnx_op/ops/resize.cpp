@@ -26,23 +26,37 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
     std::vector<int64_t> axes = get_attrs_or_default<int64_t>("axes", {}, attrs_map);
     std::string coordinate =
         get_attr_or_default<std::string>("coordinate_transformation_mode", "half_pixel", attrs_map);
-    float cubic = get_attr_or_default<float>("cubic_coeff_a ", -0.75f, attrs_map);
+    float cubic = get_attr_or_default<float>("cubic_coeff_a", -0.75f, attrs_map);
     int64_t exclude = get_attr_or_default<int64_t>("exclude_outside", 0, attrs_map);
-    float extrapolation = get_attr_or_default<float>("extrapolation_value ", -0.75f, attrs_map);
+    float extrapolation = get_attr_or_default<float>("extrapolation_value", 0.0f, attrs_map);
     std::string aspect = get_attr_or_default<std::string>("keep_aspect_ratio_policy", "stretch", attrs_map);
     std::string mode = get_attr_or_default<std::string>("mode", "nearest", attrs_map);
     std::string nearest_mode = get_attr_or_default<std::string>("nearest_mode", "round_prefer_floor", attrs_map);
 
     // get the inputs
     int input_size = proto_node.input_size();
-    for (int i = 0; i < input_size; ++i) {
-        const auto& input = proto_node.input(i);
+    if (input_size < 1) {
+        std::ostringstream oss;
+        oss << "Invalid inputs of Resize: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
     // get the outputs
     int output_size = proto_node.output_size();
-    for (int i = 0; i < output_size; ++i) {
-        const auto& output = proto_node.output(i);
+    if (output_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid outputs of Resize: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    const std::string& input = proto_node.input(0);
+    const std::string& output = proto_node.output(0);
+
+    auto input_iter = expressions.find(input);
+    if (input_iter == expressions.end()) {
+        std::ostringstream oss;
+        oss << "Input not found, Resize: " << proto_node.name() << " input: " << input;
+        return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
     return Status::ok();
