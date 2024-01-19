@@ -175,7 +175,7 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
     return Status::ok();
 }
 
-Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape) {
+Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype) {
     // type infer
     const tvm::runtime::PackedFunc* type_infer = tvm::runtime::Registry::Get("relay._transform.InferType");
     if (!type_infer) {
@@ -202,6 +202,7 @@ Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& sha
         tvm::TensorType tensor_type = type.value();
 
         const tvm::DataType& data_type = tensor_type->dtype;
+        dtype = data_type;
         const tvm::runtime::Array<tvm::PrimExpr>& expr_shape = tensor_type->shape;
 
         for (int i = 0; i < expr_shape.size(); ++i) {

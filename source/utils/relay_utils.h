@@ -62,9 +62,10 @@ Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr
  *
  * @param expr the relay expression
  * @param shape  output parameter. the relay expression shape
+ * @param dtype the data type
  * @return Status
  */
-Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape);
+Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype);
 
 }    // namespace relay_utils
 }    // namespace tvm_cpp
