@@ -49,13 +49,13 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
                                     std::unordered_map<std::string, tvm::relay::Expr>& relays);
 
 /**
- * @brief Convert the ONNX node proto to TVM relay expressions
+ * @brief Convert the ONNX nodes to TVM relay expressions
  *
- * @param proto_node the ONNX node proto
- * @param relay output parameter. the generated relay expression
+ * @param onnx_graph onnx graph proto
+ * @param relays output parameter. the generated relay expressions
  * @return Status
  */
-Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay);
+Status parse_graph_nodes_to_relays(const onnx::GraphProto& onnx_graph, std::unordered_map<std::string, tvm::relay::Expr>& relays);
 
 /**
  * @brief infer relay expr shape and data type

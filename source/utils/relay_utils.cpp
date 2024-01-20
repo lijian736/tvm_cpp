@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "onnx_op/op_parser.h"
 #include "utils.h"
 
 namespace tvm_cpp {
@@ -230,7 +231,32 @@ Status infer_relay_shape(const tvm::relay::Expr& expr, tvm::relay::Expr& relay) 
     return Status::ok();
 }
 
-Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay) { return Status::ok(); }
+Status parse_graph_nodes_to_relays(const onnx::GraphProto& onnx_graph,
+                                   std::unordered_map<std::string, tvm::relay::Expr>& relays) {
+    tvm::relay::Expr expr;
+    // iterate the graph nodes
+    for (const auto& node_prot : onnx_graph.node()) {
+        // the graph node name
+        auto& node_name = node_prot.name();
+        auto& node_type = node_prot.op_type();
+
+        auto regist = tvm_cpp::onnx_op::OnnxOpParserRegister::get_instance();
+        auto parser = regist->get_op_parser(node_type);
+
+        if (!parser) {
+            std::ostringstream oss;
+            oss << "Graph node type [" << node_type << "] has no registered parsers";
+            return Status(StatusCode::NOT_IMPLEMENTED, oss.str());
+        }
+
+        auto ret = parser->parse_op(node_prot, relays, expr);
+        if (!ret.is_ok()) {
+            return ret;
+        }
+    }
+
+    return Status::ok();
+}
 
 }    // namespace relay_utils
 }    // namespace tvm_cpp
