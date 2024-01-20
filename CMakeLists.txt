@@ -21,3 +21,6 @@ endif()
 
 # Add source folder
 add_subdirectory(source)
+
+# Add examples folder
+add_subdirectory(examples)
