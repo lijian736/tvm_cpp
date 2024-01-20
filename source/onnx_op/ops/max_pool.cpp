@@ -6,9 +6,9 @@ namespace tvm_cpp {
 namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#MaxPool
-Status MaxPool2DParser::parse_op(const onnx::NodeProto& proto_node,
-                                 std::unordered_map<std::string, tvm::relay::Expr>& expressions,
-                                 tvm::relay::Expr& relay) {
+Status MaxPoolParser::parse_op(const onnx::NodeProto& proto_node,
+                               std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                               tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "MaxPool") {
         return Status(StatusCode::INVALID_PARAM, "Invalid MaxPool parameter");
@@ -148,7 +148,7 @@ Status MaxPool2DParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
-std::string MaxPool2DParser::get_name() { return "MaxPool"; }
+std::string MaxPoolParser::get_name() { return "MaxPool"; }
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp

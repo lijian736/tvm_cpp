@@ -7,10 +7,10 @@ namespace tvm_cpp {
 namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Resize
-class Resize2DParser : public IOnnxOpParser {
+class ResizeParser : public IOnnxOpParser {
 public:
-    Resize2DParser() = default;
-    virtual ~Resize2DParser() = default;
+    ResizeParser() = default;
+    virtual ~ResizeParser() = default;
 
     virtual std::string get_name() override;
     virtual Status parse_op(const onnx::NodeProto& proto_node,

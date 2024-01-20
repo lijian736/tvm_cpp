@@ -7,9 +7,8 @@ namespace tvm_cpp {
 namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Resize
-Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
-                                std::unordered_map<std::string, tvm::relay::Expr>& expressions,
-                                tvm::relay::Expr& relay) {
+Status ResizeParser::parse_op(const onnx::NodeProto& proto_node,
+                              std::unordered_map<std::string, tvm::relay::Expr>& expressions, tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "Resize") {
         return Status(StatusCode::INVALID_PARAM, "Invalid Resize parameter");
@@ -85,6 +84,10 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
+    int dims = (int)input_shape.size();
+
+    // the output size
+    tvm::runtime::Array<tvm::relay::IndexExpr> output_size_array;
     tvm::relay::Expr size_exp;
     // get the sizes
     if (input_size == 4) {
@@ -124,9 +127,23 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
         size_exp = (*multiply)(exp, scale_iter->second);
     }
 
-    int dims = (int)input_shape.size();
+    auto status = fold_const(size_exp);
+    if (!status.is_ok()) {
+        return status;
+    }
+    const tvm::relay::ConstantNode* size_node = size_exp.as<tvm::relay::ConstantNode>();
+    if (!size_node) {
+        return Status(StatusCode::RUNTIME_ERROR, "cast to const size node fails for Reize2D");
+    }
+
+    const tvm::runtime::NDArray size_data = size_node->data;
+    for (int i = 2; i < dims; ++i) {
+        output_size_array.push_back((int32_t) static_cast<int64_t*>(size_data->data)[i]);
+    }
 
     tvm::relay::Expr roi_exp;
+    tvm::runtime::Array<tvm::FloatImm> roi_arr;
+
     std::string roi_name = proto_node.input(1);
     tvm_cpp::utils::trim(roi_name);
     if (!roi_name.empty()) {
@@ -166,34 +183,38 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
         tvm::relay::Expr all_input = (*tuple)(input_array, tvm::relay::Span());
 
         // Concate the input tensors by axis 0
-        tvm::relay::Expr s = (*concat)(all_input, 0);
-        auto ret = fold_const(s);
+        roi_exp = (*concat)(all_input, 0);
+        auto ret = fold_const(roi_exp);
         if (!ret.is_ok()) {
             return ret;
         }
-        roi_exp = s;
+
+        const tvm::relay::ConstantNode* roi_node = roi_exp.as<tvm::relay::ConstantNode>();
+        if (!roi_node) {
+            return Status(StatusCode::RUNTIME_ERROR, "cast to const roi node fails for Reize2D");
+        }
+
+        DLDataType data_type = {DLDataTypeCode::kDLFloat, 32, 1};
+        const tvm::runtime::NDArray roi_data = roi_node->data;
+        for (int i = 0; i < dims; ++i) {
+            tvm::FloatImm roi_v(tvm::runtime::DataType{data_type}, static_cast<float*>(roi_data->data)[i]);
+            roi_arr.push_back(roi_v);
+        }
     }
-
-    tvm::runtime::Array<tvm::relay::IndexExpr> begin({2});
-    tvm::runtime::Array<tvm::relay::IndexExpr> end({dims});
-    tvm::runtime::Array<tvm::relay::IndexExpr> strides({1});
-    tvm::runtime::String slice_mode = "end";
-
-    tvm::relay::Expr os = (*strided_slice)(size_exp, begin, end, strides, slice_mode, nullptr);
-
-    auto ret = fold_const(os);
-    if (!ret.is_ok()) {
-        return ret;
-    }
-    tvm::relay::Expr output_size_exp = os;
 
     if (mode == "nearest") {
         mode = "nearest_neighbor";
+    } else if (mode == "linear") {
+        // do nothing
+    } else if (mode == "cubic") {
+        // do nothing
+    } else {
+        return Status(StatusCode::INVALID_MODEL, "unsupported mode for resize");
     }
 
     if (dims == 4) {
         tvm::DataType out_type;
-        tvm::relay::Expr result_expr = (*resize2d)(input_iter->second, output_size_exp, roi_exp, "NCHW", mode,
+        tvm::relay::Expr result_expr = (*resize2d)(input_iter->second, output_size_array, roi_arr, "NCHW", mode,
                                                    coordinate, nearest_mode, cubic, exclude, extrapolation, out_type);
         auto status = fold_const(result_expr);
         if (!status.is_ok()) {
@@ -213,7 +234,7 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
-std::string Resize2DParser::get_name() { return "Resize"; }
+std::string ResizeParser::get_name() { return "Resize"; }
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp

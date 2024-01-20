@@ -7,10 +7,10 @@ namespace tvm_cpp {
 namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#MaxPool
-class MaxPool2DParser : public IOnnxOpParser {
+class MaxPoolParser : public IOnnxOpParser {
 public:
-    MaxPool2DParser() = default;
-    virtual ~MaxPool2DParser() = default;
+    MaxPoolParser() = default;
+    virtual ~MaxPoolParser() = default;
 
     virtual std::string get_name() override;
     virtual Status parse_op(const onnx::NodeProto& proto_node,

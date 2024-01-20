@@ -6,8 +6,8 @@ namespace tvm_cpp {
 namespace onnx_op {
 
 // https://github.com/onnx/onnx/blob/main/docs/Operators.md#Conv
-Status Conv2DParser::parse_op(const onnx::NodeProto& proto_node,
-                              std::unordered_map<std::string, tvm::relay::Expr>& expressions, tvm::relay::Expr& relay) {
+Status ConvParser::parse_op(const onnx::NodeProto& proto_node,
+                            std::unordered_map<std::string, tvm::relay::Expr>& expressions, tvm::relay::Expr& relay) {
     // check the op type
     if (proto_node.op_type() != "Conv") {
         return Status(StatusCode::INVALID_PARAM, "Invalid Conv parameter");
@@ -185,7 +185,7 @@ Status Conv2DParser::parse_op(const onnx::NodeProto& proto_node,
     return Status::ok();
 }
 
-std::string Conv2DParser::get_name() { return "Conv"; }
+std::string ConvParser::get_name() { return "Conv"; }
 
 }    // namespace onnx_op
 }    // namespace tvm_cpp
