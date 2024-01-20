@@ -75,7 +75,7 @@ Status Conv2DParser::parse_op(const onnx::NodeProto& proto_node,
 
     std::vector<int64_t> weight_shape;
     tvm::DataType dtype;
-    tvm_cpp::relay_utils::infer_relay_shape(weight_iter->second, weight_shape, dtype);
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(weight_iter->second, weight_shape, dtype);
     if (weight_shape.size() < 3) {
         return Status(StatusCode::INVALID_MODEL, "Invalid weight shape");
     }

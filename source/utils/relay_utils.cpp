@@ -175,7 +175,7 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
     return Status::ok();
 }
 
-Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype) {
+Status infer_relay_shape_dtype(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype) {
     // type infer
     const tvm::runtime::PackedFunc* type_infer = tvm::runtime::Registry::Get("relay._transform.InferType");
     if (!type_infer) {
@@ -216,6 +216,17 @@ Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& sha
         }
     }
 
+    return Status::ok();
+}
+
+Status infer_relay_shape(const tvm::relay::Expr& expr, tvm::relay::Expr& relay) {
+    // shape of
+    const tvm::runtime::PackedFunc* shape_of = tvm::runtime::Registry::Get("relay.op._make.shape_of");
+    if (!shape_of) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.shape_of expression not found");
+    }
+
+    relay = (*shape_of)(expr, tvm::runtime::DataType());
     return Status::ok();
 }
 

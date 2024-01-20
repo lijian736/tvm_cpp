@@ -68,6 +68,14 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
+    // get the input shape and data type
+    std::vector<int64_t> input_shape;
+    tvm::DataType input_dtype;
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(input_iter->second, input_shape, input_dtype);
+    // the inptu shape expr
+    tvm::relay::Expr input_shape_expr;
+    tvm_cpp::relay_utils::infer_relay_shape(input_iter->second, input_shape_expr);
+
     // get the scale relay
     const std::string& scale_name = proto_node.input(2);
     auto scale_iter = expressions.find(scale_name);
@@ -90,21 +98,23 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
 
         size_exp = size_iter->second;
     } else {
+        // data type cast
         const tvm::runtime::PackedFunc* cast = tvm::runtime::Registry::Get("relay.ir.cast");
         if (!cast) {
             return Status(StatusCode::INVALID_PARAM, "relay.ir.cast expression not found");
         }
 
+        // get the scale shape and data type
         std::vector<int64_t> scale_shape;
-        tvm::DataType dtype;
-        tvm_cpp::relay_utils::infer_relay_shape(scale_iter->second, scale_shape, dtype);
+        tvm::DataType scale_dtype;
+        tvm_cpp::relay_utils::infer_relay_shape_dtype(scale_iter->second, scale_shape, scale_dtype);
 
         if (scale_shape.size() == 0) {
             return Status(StatusCode::INVALID_PARAM, "Invalid scale shape");
         }
 
         // cast to the scale data type
-        tvm::relay::Expr exp = (*cast)(input_iter->second, dtype);
+        tvm::relay::Expr exp = (*cast)(input_shape_expr, scale_dtype);
 
         const tvm::runtime::PackedFunc* multiply = tvm::runtime::Registry::Get("relay.op._make.multiply");
         if (!multiply) {
@@ -113,10 +123,6 @@ Status Resize2DParser::parse_op(const onnx::NodeProto& proto_node,
 
         size_exp = (*multiply)(exp, scale_iter->second);
     }
-
-    std::vector<int64_t> input_shape;
-    tvm::DataType input_dtype;
-    tvm_cpp::relay_utils::infer_relay_shape(input_iter->second, input_shape, input_dtype);
 
     int dims = (int)input_shape.size();
 

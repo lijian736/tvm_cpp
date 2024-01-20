@@ -69,7 +69,7 @@ Status MaxPool2DParser::parse_op(const onnx::NodeProto& proto_node,
 
     std::vector<int64_t> input_shape;
     tvm::DataType dtype;
-    tvm_cpp::relay_utils::infer_relay_shape(input_iter->second, input_shape, dtype);
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(input_iter->second, input_shape, dtype);
 
     int dims = input_shape.size() - 2;
     if (dims != 2) {

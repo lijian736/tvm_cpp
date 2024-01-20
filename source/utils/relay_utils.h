@@ -58,14 +58,23 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
 Status convert_node_to_relay(const onnx::NodeProto& proto_node, tvm::relay::Expr& relay);
 
 /**
- * @brief infer relay expr shape
+ * @brief infer relay expr shape and data type
  *
  * @param expr the relay expression
  * @param shape  output parameter. the relay expression shape
  * @param dtype the data type
  * @return Status
  */
-Status infer_relay_shape(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype);
+Status infer_relay_shape_dtype(const tvm::relay::Expr& expr, std::vector<int64_t>& shape, tvm::DataType& dtype);
+
+/**
+ * @brief infer relay expr shape
+ * 
+ * @param expr the relay expression
+ * @param relay output parameter. the relay expression shape
+ * @return Status 
+ */
+Status infer_relay_shape(const tvm::relay::Expr& expr, tvm::relay::Expr& relay);
 
 }    // namespace relay_utils
 }    // namespace tvm_cpp
