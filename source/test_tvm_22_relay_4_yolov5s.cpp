@@ -8,12 +8,14 @@
 #include <string>
 
 #include "onnx.proto3.pb.h"
+#include "onnx_op/op_parser.h"
 #include "utils/onnx_utils.h"
 #include "utils/relay_utils.h"
 #include "utils/utils.h"
 
 using namespace tvm_cpp::utils;
 using namespace tvm_cpp::onnx_utils;
+using namespace tvm_cpp::onnx_op;
 using namespace tvm_cpp::relay_utils;
 
 using namespace tvm;
@@ -22,6 +24,8 @@ using namespace tvm::relay::transform;
 using namespace tvm::runtime;
 
 int main(int argc, char** argv) {
+    OnnxOpParserRegister::get_instance()->register_all_supported_ops();
+
     if (argc <= 1) {
         std::cerr << "Invalid arguments" << std::endl;
         return -1;

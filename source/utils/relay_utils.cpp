@@ -36,11 +36,13 @@ Status convert_initializer_to_relay(const tvm::runtime::PackedFunc* gen_func, co
 
     // It's a good idea to generate empty NDArray using PackedFunc 'runtime.TVMArrayAllocWithScope'
     // shape, data type, device, only float data type supported now
-    tvm::runtime::NDArray initializer = tvm::runtime::NDArray::Empty(
-        tvm::runtime::ShapeTuple(tensor_shape), {DLDataTypeCode::kDLFloat, 32, 1}, {DLDeviceType::kDLCPU, 0});
+    tvm::runtime::NDArray initializer;
 
     switch (proto_tensor.data_type()) {
         case onnx::TensorProto_DataType::TensorProto_DataType_FLOAT: {
+            initializer = tvm::runtime::NDArray::Empty(tvm::runtime::ShapeTuple(tensor_shape),
+                                                       {DLDataTypeCode::kDLFloat, 32, 1}, {DLDeviceType::kDLCPU, 0});
+
             if (proto_tensor.raw_data().length() > 0) {
                 // TODO, check if the current CPU bytes order is little endian
                 if (proto_tensor.raw_data().length() == sizeof(float) * element_num) {
@@ -69,6 +71,39 @@ Status convert_initializer_to_relay(const tvm::runtime::PackedFunc* gen_func, co
                 }
             }
 
+            break;
+        }
+
+        case onnx::TensorProto_DataType::TensorProto_DataType_INT64: {
+            initializer = tvm::runtime::NDArray::Empty(tvm::runtime::ShapeTuple(tensor_shape),
+                                                       {DLDataTypeCode::kDLInt, 64, 1}, {DLDeviceType::kDLCPU, 0});
+
+            if (proto_tensor.raw_data().length() > 0) {
+                if (proto_tensor.raw_data().length() == sizeof(int64_t) * element_num) {
+                    const char* tensor_data = proto_tensor.raw_data().data();
+
+                    // copy the data
+                    initializer.CopyFromBytes(tensor_data, proto_tensor.raw_data().length());
+                } else {
+                    std::ostringstream oss;
+                    oss << "Invalid tensor int64 data length with its dims, tensor name: " << proto_tensor.name();
+                    return Status(StatusCode::INVALID_MODEL, oss.str());
+                }
+            } else {
+                std::vector<int64_t> int64_data(element_num, 0);
+                if (proto_tensor.int64_data_size() == element_num) {
+                    for (int i = 0; i < proto_tensor.int64_data_size(); ++i) {
+                        int64_data[i] = proto_tensor.int64_data(i);
+                    }
+
+                    // copy the data
+                    initializer.CopyFromBytes(int64_data.data(), proto_tensor.int64_data_size() * sizeof(int64_t));
+                } else {
+                    std::ostringstream oss;
+                    oss << "Invalid tensor int64 data length with its dims, tensor name: " << proto_tensor.name();
+                    return Status(StatusCode::INVALID_MODEL, oss.str());
+                }
+            }
             break;
         }
 
