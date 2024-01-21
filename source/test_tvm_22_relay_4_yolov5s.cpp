@@ -65,7 +65,20 @@ int main(int argc, char** argv) {
     auto ret = parse_graph_to_irmodule(onnx_model.graph(), mod);
     if (!ret.is_ok()) {
         std::cout << ret << std::endl;
+        return -1;
     }
+
+    // Pretty print
+    const tvm::runtime::PackedFunc* pretty_print = tvm::runtime::Registry::Get("relay.ir.PrettyPrint");
+    if (!pretty_print) {
+        std::cerr << "relay.ir.PrettyPrint expression not found" << std::endl;
+        return -1;
+    }
+
+    // print the type infered IR model
+    tvm::String result_text = (*pretty_print)(mod);
+    std::string result_str = (std::string)result_text;
+    std::cout << "YOLOv5s IR Model Result info: " << std::endl << result_str << std::endl;
 
     return 0;
 }
