@@ -1,5 +1,7 @@
 #include "reshape.h"
 
+#include "utils/relay_utils.h"
+
 namespace tvm_cpp {
 namespace onnx_op {
 
@@ -58,7 +60,37 @@ Status ReshapeParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
-    tvm::relay::Expr result_expr = (*reshape)(input_iter->second, new_shape_iter->second, (allowzero ? true : false));
+    std::vector<int64_t> new_shape_shape;
+    tvm::DataType new_shape_dtype;
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(new_shape_iter->second, new_shape_shape, new_shape_dtype);
+    int64_t scale_ele_nums = 1;
+    for (auto& dim : new_shape_shape) {
+        scale_ele_nums *= dim;
+    }
+
+    const tvm::relay::ConstantNode* const_expr = new_shape_iter->second.as<tvm::relay::ConstantNode>();
+    if (!const_expr) {
+        return Status(StatusCode::RUNTIME_ERROR, "cast new shape to const node fails for REshape");
+    }
+
+    tvm::runtime::Array<tvm::Integer> new_shape_arr;
+
+    tvm::runtime::NDArray new_shape_data = const_expr->data;
+
+    if (new_shape_dtype.is_int()) {
+        if (new_shape_dtype.bits() == 64) {
+            for (int i = 0; i < scale_ele_nums; ++i) {
+                auto val = static_cast<int64_t*>(new_shape_data->data)[i];
+                new_shape_arr.push_back((int)val);
+            }
+        } else {
+            return Status(StatusCode::NOT_IMPLEMENTED, "unsupported new shape data type for Reshape");
+        }
+    } else {
+        return Status(StatusCode::NOT_IMPLEMENTED, "unsupported new shape data type for Reshape");
+    }
+
+    tvm::relay::Expr result_expr = (*reshape)(input_iter->second, new_shape_arr, (allowzero ? true : false));
 
     auto status = fold_const(result_expr);
     if (!status.is_ok()) {

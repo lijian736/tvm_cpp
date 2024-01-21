@@ -71,9 +71,6 @@ Status ResizeParser::parse_op(const onnx::NodeProto& proto_node,
     std::vector<int64_t> input_shape;
     tvm::DataType input_dtype;
     tvm_cpp::relay_utils::infer_relay_shape_dtype(input_iter->second, input_shape, input_dtype);
-    // the inptu shape expr
-    tvm::relay::Expr input_shape_expr;
-    tvm_cpp::relay_utils::infer_relay_shape(input_iter->second, input_shape_expr);
 
     // get the scale relay
     const std::string& scale_name = proto_node.input(2);
@@ -88,7 +85,6 @@ Status ResizeParser::parse_op(const onnx::NodeProto& proto_node,
 
     // the output size
     tvm::runtime::Array<tvm::relay::IndexExpr> output_size_array;
-    tvm::relay::Expr size_exp;
     // get the sizes
     if (input_size == 4) {
         const std::string& size_name = proto_node.input(3);
@@ -99,49 +95,80 @@ Status ResizeParser::parse_op(const onnx::NodeProto& proto_node,
             return Status(StatusCode::INVALID_MODEL, oss.str());
         }
 
-        size_exp = size_iter->second;
-    } else {
-        // data type cast
-        const tvm::runtime::PackedFunc* cast = tvm::runtime::Registry::Get("relay.ir.cast");
-        if (!cast) {
-            return Status(StatusCode::INVALID_PARAM, "relay.ir.cast expression not found");
+        std::vector<int64_t> size_shape;
+        tvm::DataType size_dtype;
+        tvm_cpp::relay_utils::infer_relay_shape_dtype(size_iter->second, size_shape, size_dtype);
+
+        int64_t size_ele_nums = 1;
+        for (auto& dim : size_shape) {
+            size_ele_nums *= dim;
         }
 
-        // get the scale shape and data type
+        const tvm::relay::ConstantNode* const_expr = size_iter->second.as<tvm::relay::ConstantNode>();
+        if (!const_expr) {
+            return Status(StatusCode::RUNTIME_ERROR, "cast size to const node fails for Reize");
+        }
+
+        tvm::runtime::NDArray size_data = const_expr->data;
+
+        if (size_dtype.is_int()) {
+            if (size_dtype.bits() == 64) {
+                for (int i = 0; i < size_ele_nums; ++i) {
+                    auto val = static_cast<int64_t*>(size_data->data)[i] * input_shape[i];
+                    output_size_array.push_back({(int32_t)val});
+                }
+            } else {
+                return Status(StatusCode::NOT_IMPLEMENTED, "unsupported size data type for Reize");
+            }
+        } else {
+            return Status(StatusCode::NOT_IMPLEMENTED, "unsupported size data type for Reize");
+        }
+
+    } else {
         std::vector<int64_t> scale_shape;
         tvm::DataType scale_dtype;
         tvm_cpp::relay_utils::infer_relay_shape_dtype(scale_iter->second, scale_shape, scale_dtype);
 
-        if (scale_shape.size() == 0) {
-            return Status(StatusCode::INVALID_PARAM, "Invalid scale shape");
+        int64_t scale_ele_nums = 1;
+        for (auto& dim : scale_shape) {
+            scale_ele_nums *= dim;
         }
 
-        // cast to the scale data type
-        tvm::relay::Expr exp = (*cast)(input_shape_expr, scale_dtype);
-
-        const tvm::runtime::PackedFunc* multiply = tvm::runtime::Registry::Get("relay.op._make.multiply");
-        if (!multiply) {
-            return Status(StatusCode::INVALID_PARAM, "relay.op._make.multiply expression not found");
+        if (scale_ele_nums != dims) {
+            return Status(StatusCode::INVALID_MODEL, "scale element num is not equal to inptu dims for Reize");
         }
 
-        size_exp = (*multiply)(exp, scale_iter->second);
+        const tvm::relay::ConstantNode* const_expr = scale_iter->second.as<tvm::relay::ConstantNode>();
+        if (!const_expr) {
+            return Status(StatusCode::RUNTIME_ERROR, "cast scale to const node fails for Reize");
+        }
+
+        tvm::runtime::NDArray scale_data = const_expr->data;
+
+        if (scale_dtype.is_float()) {
+            for (int i = 2; i < scale_ele_nums; ++i) {
+                auto val = static_cast<float*>(scale_data->data)[i] * input_shape[i];
+                output_size_array.push_back({(int32_t)val});
+            }
+        } else if (scale_dtype.is_int()) {
+            if (scale_dtype.bits() == 32) {
+                for (int i = 2; i < scale_ele_nums; ++i) {
+                    auto val = static_cast<int32_t*>(scale_data->data)[i] * input_shape[i];
+                    output_size_array.push_back({(int32_t)val});
+                }
+            } else if (scale_dtype.bits() == 64) {
+                for (int i = 2; i < scale_ele_nums; ++i) {
+                    auto val = static_cast<int64_t*>(scale_data->data)[i] * input_shape[i];
+                    output_size_array.push_back({(int32_t)val});
+                }
+            } else {
+                return Status(StatusCode::NOT_IMPLEMENTED, "unsupported scale data type for Reize");
+            }
+        } else {
+            return Status(StatusCode::NOT_IMPLEMENTED, "unsupported scale data type for Reize");
+        }
     }
 
-    auto status = fold_const(size_exp);
-    if (!status.is_ok()) {
-        return status;
-    }
-    const tvm::relay::ConstantNode* size_node = size_exp.as<tvm::relay::ConstantNode>();
-    if (!size_node) {
-        return Status(StatusCode::RUNTIME_ERROR, "cast to const size node fails for Reize2D");
-    }
-
-    const tvm::runtime::NDArray size_data = size_node->data;
-    for (int i = 2; i < dims; ++i) {
-        output_size_array.push_back((int32_t) static_cast<int64_t*>(size_data->data)[i]);
-    }
-
-    tvm::relay::Expr roi_exp;
     tvm::runtime::Array<tvm::FloatImm> roi_arr;
 
     std::string roi_name = proto_node.input(1);
@@ -154,50 +181,22 @@ Status ResizeParser::parse_op(const onnx::NodeProto& proto_node,
             return Status(StatusCode::INVALID_MODEL, oss.str());
         }
 
-        roi_exp = roi_iter->second;
-
-        tvm::runtime::Array<tvm::relay::IndexExpr> begin1({2});
-        tvm::runtime::Array<tvm::relay::IndexExpr> end1({dims});
-
-        tvm::runtime::Array<tvm::relay::IndexExpr> begin2({2 + dims});
-        tvm::runtime::Array<tvm::relay::IndexExpr> end2({2 * dims});
-
-        tvm::runtime::Array<tvm::relay::IndexExpr> strides({1});
-        tvm::runtime::String slice_mode = "end";
-
-        tvm::relay::Expr s1 = (*strided_slice)(roi_exp, begin1, end1, strides, slice_mode, nullptr);
-        tvm::relay::Expr s2 = (*strided_slice)(roi_exp, begin2, end2, strides, slice_mode, nullptr);
-
-        const tvm::runtime::PackedFunc* concat = tvm::runtime::Registry::Get("relay.op._make.concatenate");
-        if (!concat) {
-            return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.concatenate expression not found");
-        }
-
-        // get the tuple relay
-        const tvm::runtime::PackedFunc* tuple = tvm::runtime::Registry::Get("relay.ir.Tuple");
-        if (!tuple) {
-            return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Tuple expression not found");
-        }
-
-        tvm::runtime::Array<tvm::relay::Expr> input_array{s1, s2};
-        tvm::relay::Expr all_input = (*tuple)(input_array, tvm::relay::Span());
-
-        // Concate the input tensors by axis 0
-        roi_exp = (*concat)(all_input, 0);
-        auto ret = fold_const(roi_exp);
-        if (!ret.is_ok()) {
-            return ret;
-        }
-
-        const tvm::relay::ConstantNode* roi_node = roi_exp.as<tvm::relay::ConstantNode>();
-        if (!roi_node) {
-            return Status(StatusCode::RUNTIME_ERROR, "cast to const roi node fails for Reize2D");
+        const tvm::relay::ConstantNode* const_expr = roi_iter->second.as<tvm::relay::ConstantNode>();
+        if (!const_expr) {
+            return Status(StatusCode::RUNTIME_ERROR, "cast roi to const node fails for Reize");
         }
 
         DLDataType data_type = {DLDataTypeCode::kDLFloat, 32, 1};
-        const tvm::runtime::NDArray roi_data = roi_node->data;
+        const tvm::runtime::NDArray roi_data = const_expr->data;
+        for (int i = 2; i < dims; ++i) {
+            tvm::FloatImm roi_v(tvm::runtime::DataType{data_type},
+                                static_cast<float*>(roi_data->data)[i] + static_cast<float*>(roi_data->data)[i + dims]);
+            roi_arr.push_back(roi_v);
+        }
+    } else {
+        DLDataType data_type = {DLDataTypeCode::kDLFloat, 32, 1};
+        tvm::FloatImm roi_v(tvm::runtime::DataType{data_type}, 0);
         for (int i = 0; i < dims; ++i) {
-            tvm::FloatImm roi_v(tvm::runtime::DataType{data_type}, static_cast<float*>(roi_data->data)[i]);
             roi_arr.push_back(roi_v);
         }
     }

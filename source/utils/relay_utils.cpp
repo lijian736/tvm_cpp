@@ -383,7 +383,7 @@ Status parse_graph_to_irmodule(const onnx::GraphProto& onnx_graph, tvm::IRModule
         return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Function expression not found");
     }
 
-    tvm::relay::Expr func = (*function)(all_input, all_output);
+    tvm::relay::Expr func = (*function)(all_input, all_output, tvm::relay::Type(), tvm::runtime::Array<tvm::relay::TypeVar>(), tvm::DictAttrs(), tvm::relay::Span());
     module = tvm::IRModule::FromExpr(func);
 
     return Status::ok();
