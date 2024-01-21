@@ -58,6 +58,15 @@ Status parse_graph_inputs_to_relays(const onnx::GraphProto& onnx_graph,
 Status parse_graph_nodes_to_relays(const onnx::GraphProto& onnx_graph, std::unordered_map<std::string, tvm::relay::Expr>& relays);
 
 /**
+ * @brief parse graph to ir module
+ * 
+ * @param onnx_graph onnx graph proto
+ * @param module output parameter. the ir module
+ * @return Status 
+ */
+Status parse_graph_to_irmodule(const onnx::GraphProto& onnx_graph, tvm::IRModule& module);
+
+/**
  * @brief infer relay expr shape and data type
  *
  * @param expr the relay expression

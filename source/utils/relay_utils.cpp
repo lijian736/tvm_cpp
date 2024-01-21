@@ -258,5 +258,101 @@ Status parse_graph_nodes_to_relays(const onnx::GraphProto& onnx_graph,
     return Status::ok();
 }
 
+Status parse_graph_to_irmodule(const onnx::GraphProto& onnx_graph, tvm::IRModule& module) {
+    std::unordered_map<std::string, tvm::relay::Expr> input_relays;
+    std::unordered_map<std::string, tvm::relay::Expr> initializer_relays;
+
+    // get graph inputs relays
+    Status status = parse_graph_inputs_to_relays(onnx_graph, input_relays);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    // get graph initializers relays
+    status = parse_graph_initializers_to_relays(onnx_graph, initializer_relays);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    // merge the initializers and inputs. if some input is an initializer of the graph,
+    // keep the initializer
+    std::unordered_map<std::string, tvm::relay::Expr> all_relays;
+    all_relays.merge(initializer_relays);
+    all_relays.merge(input_relays);
+
+    // some input exists as an intializers in the graph
+    if (input_relays.size() > 0) {
+        // LOG
+    }
+
+    status = parse_graph_nodes_to_relays(onnx_graph, all_relays);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    tvm::relay::Expr all_output;
+    int output_size = onnx_graph.output_size();
+    if (output_size > 1) {
+        // get the tuple relay
+        const tvm::runtime::PackedFunc* tuple = tvm::runtime::Registry::Get("relay.ir.Tuple");
+        if (!tuple) {
+            return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Tuple expression not found");
+        }
+
+        // the output relays
+        tvm::runtime::Array<tvm::relay::Expr> output_array;
+        for (int i = 0; i < output_size; ++i) {
+            const auto& output = onnx_graph.output(i);
+            const auto& output_name = output.name();
+            auto relay_iter = all_relays.find(output_name);
+            if (relay_iter == all_relays.end()) {
+                std::ostringstream oss;
+                oss << "Graph output [" << output_name << "] has no related relay";
+                return Status(StatusCode::INVALID_MODEL, oss.str());
+            }
+
+            output_array.push_back(relay_iter->second);
+        }
+
+        all_output = (*tuple)(output_array, tvm::relay::Span());
+    } else {
+        const auto& output_name = onnx_graph.output(0).name();
+        auto relay_iter = all_relays.find(output_name);
+        if (relay_iter == all_relays.end()) {
+            std::ostringstream oss;
+            oss << "Graph output [" << output_name << "] has no related relay";
+            return Status(StatusCode::INVALID_MODEL, oss.str());
+        }
+
+        all_output = relay_iter->second;
+    }
+
+    tvm::runtime::Array<tvm::relay::Expr> all_input;
+    int input_size = onnx_graph.input_size();
+    for (int i = 0; i < input_size; ++i) {
+        const auto& input = onnx_graph.input(i);
+        const auto& input_name = input.name();
+        auto relay_iter = all_relays.find(input_name);
+        if (relay_iter == all_relays.end()) {
+            std::ostringstream oss;
+            oss << "Graph output [" << input_name << "] has no related relay";
+            return Status(StatusCode::INVALID_MODEL, oss.str());
+        }
+
+        all_input.push_back(relay_iter->second);
+    }
+
+    // get the function relay
+    const tvm::runtime::PackedFunc* function = tvm::runtime::Registry::Get("relay.ir.Function");
+    if (!function) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.ir.Function expression not found");
+    }
+
+    tvm::relay::Expr func = (*function)(all_input, all_output);
+    module = tvm::IRModule::FromExpr(func);
+
+    return Status::ok();
+}
+
 }    // namespace relay_utils
 }    // namespace tvm_cpp
