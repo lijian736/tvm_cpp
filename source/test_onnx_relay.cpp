@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
     // print the type infered IR model
     tvm::String result_text = (*pretty_print)(mod);
     std::string result_str = (std::string)result_text;
-    std::cout << "YOLOv5s IR Model Result info: " << std::endl << result_str << std::endl;
+    std::cout << "the ONNX relay IR Model Result info: " << std::endl << result_str << std::endl;
 
     return 0;
 }
