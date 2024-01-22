@@ -312,8 +312,8 @@ Status parse_graph_to_irmodule(const onnx::GraphProto& onnx_graph, tvm::IRModule
     // merge the initializers and inputs. if some input is an initializer of the graph,
     // keep the initializer
     std::unordered_map<std::string, tvm::relay::Expr> all_relays;
-    all_relays.merge(initializer_relays);
     all_relays.merge(input_relays);
+    all_relays.merge(initializer_relays);
 
     // some input exists as an intializers in the graph
     if (input_relays.size() > 0) {

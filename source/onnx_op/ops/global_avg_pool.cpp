@@ -64,7 +64,7 @@ Status GlobalAveragePoolParser::parse_op(const onnx::NodeProto& proto_node,
             return Status(StatusCode::RUNTIME_ERROR, "relay.op.nn._make.global_avg_pool2d expression not found");
         }
 
-        result_expr = (*global_avg_pool)(input_iter->second, output_size, "NCHW", "");
+        result_expr = (*global_avg_pool)(input_iter->second, "NCHW", "");
     } else if (input_rank == 5) {
         // get the 3d global avg pool relay function
         const tvm::runtime::PackedFunc* global_avg_pool =

@@ -3,6 +3,9 @@
 #include "ops/add.h"
 #include "ops/concat.h"
 #include "ops/conv.h"
+#include "ops/flatten.h"
+#include "ops/gemm.h"
+#include "ops/global_avg_pool.h"
 #include "ops/max_pool.h"
 #include "ops/mul.h"
 #include "ops/relu.h"
@@ -62,6 +65,9 @@ void OnnxOpParserRegister::register_all_supported_ops() {
     this->register_op<ReshapeParser>();
     this->register_op<ResizeParser>();
     this->register_op<TransposeParser>();
+    this->register_op<GlobalAveragePoolParser>();
+    this->register_op<FlattenParser>();
+    this->register_op<GemmParser>();
 }
 
 }    // namespace onnx_op
