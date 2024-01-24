@@ -34,8 +34,10 @@ endfunction()
 
 GENERATE_EXECUTABLE(test_onnx_01_basic_info)
 GENERATE_EXECUTABLE(test_onnx_02_relay_print)
+
 GENERATE_EXECUTABLE(test_tvm_01_hello_world)
 GENERATE_EXECUTABLE(test_tvm_02_ndarray)
+
 GENERATE_EXECUTABLE(test_tvm_relay_01)
 GENERATE_EXECUTABLE(test_tvm_relay_02_constant)
 GENERATE_EXECUTABLE(test_tvm_relay_03_var)
@@ -58,3 +60,5 @@ GENERATE_EXECUTABLE(test_tvm_relay_19_global_avg_pool)
 GENERATE_EXECUTABLE(test_tvm_relay_20_flatten)
 GENERATE_EXECUTABLE(test_tvm_relay_21_dense)
 GENERATE_EXECUTABLE(test_tvm_relay_22_print)
+
+GENERATE_EXECUTABLE(test_tvm_pass_01)
