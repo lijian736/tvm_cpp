@@ -61,4 +61,4 @@ GENERATE_EXECUTABLE(test_tvm_relay_20_flatten)
 GENERATE_EXECUTABLE(test_tvm_relay_21_dense)
 GENERATE_EXECUTABLE(test_tvm_relay_22_print)
 
-GENERATE_EXECUTABLE(test_tvm_pass_01)
+GENERATE_EXECUTABLE(test_tvm_pass_01_pass_context)
