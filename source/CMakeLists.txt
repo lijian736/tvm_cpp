@@ -63,3 +63,4 @@ GENERATE_EXECUTABLE(test_tvm_relay_22_print)
 
 GENERATE_EXECUTABLE(test_tvm_pass_01_pass_context)
 GENERATE_EXECUTABLE(test_tvm_pass_02_query_passes)
+GENERATE_EXECUTABLE(test_tvm_pass_03_dead_code_elimination)
