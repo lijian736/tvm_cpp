@@ -28,14 +28,6 @@ using namespace tvm::relay::transform;
 using namespace tvm::runtime;
 
 int main(int argc, char** argv) {
-        // generate module with dead codes
-    tvm::IRModule module;
-    auto ret = generate_dead_code_module(module);
-    if (!ret.is_ok()) {
-        std::cout << ret << std::endl;
-        return -1;
-    }
-
     // Pretty print
     const tvm::runtime::PackedFunc* pretty_print = tvm::runtime::Registry::Get("relay.ir.PrettyPrint");
     if (!pretty_print) {
@@ -43,10 +35,34 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    const tvm::runtime::PackedFunc* dead_code_elimination =
+        tvm::runtime::Registry::Get("relay._transform.DeadCodeElimination");
+    if (!dead_code_elimination) {
+        std::cerr << "relay._transform.DeadCodeElimination expression not found" << std::endl;
+        return -1;
+    }
+
+    // generate module with dead codes
+    tvm::IRModule module;
+    auto ret = generate_dead_code_module(module);
+    if (!ret.is_ok()) {
+        std::cout << ret << std::endl;
+        return -1;
+    }
+
+    // get dead code elimination pass
+    auto pass_ctx = PassContext::Create();
+    pass_ctx->opt_level = 1;
+    With<PassContext> scope(pass_ctx);
+
+    tvm::relay::transform::Pass dce_pass = (*dead_code_elimination)(false, false);
+
     // print the type infered IR module
     tvm::String before_text = (*pretty_print)(module);
     std::string before_str = (std::string)before_text;
     std::cout << "the ONNX relay IR Model info(before dead code elimination): " << std::endl << before_str << std::endl;
+
+    module = dce_pass(module);
 
     // print the new IR module after dead code elimination
     tvm::String after_text = (*pretty_print)(module);
