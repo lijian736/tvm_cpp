@@ -69,6 +69,24 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
     tvm::DataType matrixB_dtype;
     tvm_cpp::relay_utils::infer_relay_shape_dtype(matrixB_iter->second, matrixB_shape, matrixB_dtype);
 
+    if (matrixA_shape.size() > 2 || matrixB_shape.size() > 2) {
+        std::vector<int64_t> output_batch;
+        std::vector<int64_t> new_shape_A(matrixA_shape);
+        std::vector<int64_t> new_shape_B(matrixB_shape);
+        if (matrixA_shape.size() > matrixB_shape.size()) {
+            // position, count, value
+            new_shape_B.insert(new_shape_B.begin(), matrixA_shape.size() - matrixB_shape.size(), 1);
+        } else if (matrixA_shape.size() < matrixB_shape.size()) {
+            // position, count, value
+            new_shape_A.insert(new_shape_A.begin(), matrixB_shape.size() - matrixA_shape.size(), 1);
+        }
+
+        int batch_loop = std::max(matrixA_shape.size(), matrixB_shape.size()) - 2;
+        for (int i = 0; i < batch_loop; ++i) {
+            output_batch.emplace_back(std::max(new_shape_A[i], new_shape_B[i]));
+        }
+    }
+
     if (matrixA_shape.size() != 2 || matrixB_shape.size() != 2) {
         std::ostringstream oss;
         oss << "MatMul [" << proto_node.name() << "] is not implemented with shape rank ["
