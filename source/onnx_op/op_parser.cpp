@@ -12,6 +12,7 @@
 #include "ops/reshape.h"
 #include "ops/resize.h"
 #include "ops/transpose.h"
+#include "ops/matmul.h"
 
 namespace tvm_cpp {
 namespace onnx_op {
@@ -68,6 +69,7 @@ void OnnxOpParserRegister::register_all_supported_ops() {
     this->register_op<GlobalAveragePoolParser>();
     this->register_op<FlattenParser>();
     this->register_op<GemmParser>();
+    this->register_op<MatMulParser>();
 }
 
 }    // namespace onnx_op
