@@ -24,8 +24,6 @@ using namespace tvm::relay::transform;
 using namespace tvm::runtime;
 
 int main(int argc, char** argv) {
-    OnnxOpParserRegister::get_instance()->register_all_supported_ops();
-
     if (argc <= 1) {
         std::cerr << "Invalid arguments" << std::endl;
         return -1;

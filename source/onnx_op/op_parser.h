@@ -85,13 +85,13 @@ public:
      */
     IOnnxOpParser* get_op_parser(const std::string& op_type);
 
+private:
+    OnnxOpParserRegister();
+
     /**
      * @brief Register all supported ops
      */
     void register_all_supported_ops();
-
-private:
-    OnnxOpParserRegister() = default;
 
     template <typename T, typename = std::enable_if_t<std::is_base_of_v<tvm_cpp::onnx_op::IOnnxOpParser, T>>>
     void register_op() {

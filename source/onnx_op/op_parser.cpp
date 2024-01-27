@@ -42,6 +42,10 @@ Status IOnnxOpParser::fold_const(tvm::relay::Expr& expr) {
     return Status::ok();
 }
 
+OnnxOpParserRegister::OnnxOpParserRegister(){
+    this->register_all_supported_ops();
+}
+
 OnnxOpParserRegister* OnnxOpParserRegister::get_instance() {
     static OnnxOpParserRegister instance;
     return &instance;
