@@ -13,6 +13,13 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::INVALID_PARAM, "Invalid MatMul parameter");
     }
 
+    return parse_method_1(proto_node, expressions, relay);
+    return parse_method_2(proto_node, expressions, relay);
+}
+
+Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
+                                    std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                                    tvm::relay::Expr& relay) {
     // transpose
     const tvm::runtime::PackedFunc* transpose = tvm::runtime::Registry::Get("relay.op._make.transpose");
     if (!transpose) {
@@ -35,6 +42,24 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
     const tvm::runtime::PackedFunc* broadcast_to = tvm::runtime::Registry::Get("relay.op._make.broadcast_to");
     if (!broadcast_to) {
         return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.broadcast_to expression not found");
+    }
+
+    // get the batch matmul relay function
+    const tvm::runtime::PackedFunc* batch_matmul = tvm::runtime::Registry::Get("relay.op.nn._make.batch_matmul");
+    if (!batch_matmul) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op.nn._make.batch_matmul expression not found");
+    }
+
+    // get the expand_dims relay function
+    const tvm::runtime::PackedFunc* expand_dims = tvm::runtime::Registry::Get("relay.op._make.expand_dims");
+    if (!expand_dims) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.expand_dims expression not found");
+    }
+
+    // get the squeeze relay function
+    const tvm::runtime::PackedFunc* squeeze = tvm::runtime::Registry::Get("relay.op._make.squeeze");
+    if (!squeeze) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.squeeze expression not found");
     }
 
     // get the inputs
@@ -129,22 +154,82 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
                 B = (*broadcast_to)(matrixB_iter->second, broadcast_shape_B_relay);
             }
 
-            //FIXME
             tvm::runtime::Array<tvm::Integer> reshape_shape_A(
-                {-1, broadcast_shape_A_relay[-2], broadcast_shape_A_relay[-1]});
+                {-1, broadcast_shape_A_relay[broadcast_shape_A_relay.size() - 2],
+                 broadcast_shape_A_relay[broadcast_shape_A_relay.size() - 1]});
             tvm::runtime::Array<tvm::Integer> reshape_shape_B(
-                {-1, broadcast_shape_B_relay[-2], broadcast_shape_B_relay[-1]});
-                
+                {-1, broadcast_shape_B_relay[broadcast_shape_B_relay.size() - 2],
+                 broadcast_shape_B_relay[broadcast_shape_B_relay.size() - 1]});
+
             tvm::relay::Expr reshape_A = (*reshape)(A, reshape_shape_A, true);
             tvm::relay::Expr reshape_B = (*reshape)(B, reshape_shape_B, true);
+
+            output_result = (*batch_matmul)(reshape_A, reshape_B, matrixA_dtype, false, false);
         }
+
+        tvm::runtime::Array<tvm::Integer> final_shape;
+        std::for_each(output_batch.begin(), output_batch.end(),
+                      [&](int64_t val) { final_shape.push_back((int32_t)val); });
+        final_shape.push_back(matrixA_shape[matrixA_shape.size() - 2]);
+        final_shape.push_back(matrixB_shape[matrixB_shape.size() - 1]);
+
+        tvm::relay::Expr result_expr;
+        result_expr = (*reshape)(output_result, final_shape, true);
+
+        auto status = fold_const(result_expr);
+        if (!status.is_ok()) {
+            return status;
+        }
+
+        // add to expressions
+        auto ret = expressions.emplace(output, result_expr);
+        if (!ret.second) {
+            ret.first->second = result_expr;
+        }
+        relay = result_expr;
+
+        return Status::ok();
     }
 
-    if (matrixA_shape.size() != 2 || matrixB_shape.size() != 2) {
-        std::ostringstream oss;
-        oss << "MatMul [" << proto_node.name() << "] is not implemented with shape rank ["
-            << " matrix A rank: " << matrixA_shape.size() << ", matrix B rank: " << matrixB_shape.size() << "]";
-        return Status(StatusCode::NOT_IMPLEMENTED, oss.str());
+    if (matrixA_shape.size() == 1 || matrixB_shape.size() == 1) {
+        tvm::runtime::Array<tvm::Integer> axis;
+        tvm::relay::Expr lhs;
+        tvm::relay::Expr rhs;
+        if (matrixA_shape.size() == 1) {
+            // relay, position, number of new axes
+            lhs = (*expand_dims)(matrixA_iter->second, 0, 1);
+            axis.push_back(0);
+        } else {
+            lhs = matrixA_iter->second;
+        }
+
+        tvm::relay::Expr tmp;
+        if (matrixB_shape.size() == 1) {
+            rhs = (*expand_dims)(matrixB_iter->second, 1, 1);
+            axis.push_back(-1);
+
+            tmp = (*dense)(lhs, rhs, 1, matrixA_dtype);
+        } else {
+            rhs = matrixB_iter->second;
+            tmp = (*dense)(lhs, rhs, matrixB_shape[matrixB_shape.size() - 1], matrixA_dtype);
+        }
+
+        tvm::relay::Expr result_expr;
+        result_expr = (*squeeze)(tmp, axis);
+
+        auto status = fold_const(result_expr);
+        if (!status.is_ok()) {
+            return status;
+        }
+
+        // add to expressions
+        auto ret = expressions.emplace(output, result_expr);
+        if (!ret.second) {
+            ret.first->second = result_expr;
+        }
+        relay = result_expr;
+
+        return Status::ok();
     }
 
     tvm::runtime::Array<tvm::Integer> axes({1, 0});
@@ -155,6 +240,78 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
 
     tvm::relay::Expr result_expr;
     result_expr = (*dense)(matrixA_iter->second, matrixB, matrixB_shape[1], matrixA_dtype);
+
+    auto status = fold_const(result_expr);
+    if (!status.is_ok()) {
+        return status;
+    }
+
+    // add to expressions
+    auto ret = expressions.emplace(output, result_expr);
+    if (!ret.second) {
+        ret.first->second = result_expr;
+    }
+    relay = result_expr;
+
+    return Status::ok();
+}
+
+Status MatMulParser::parse_method_2(const onnx::NodeProto& proto_node,
+                                    std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                                    tvm::relay::Expr& relay) {
+    // get the matmul relay function
+    const tvm::runtime::PackedFunc* matmul = tvm::runtime::Registry::Get("relay.op.nn._make.matmul");
+    if (!matmul) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op.nn._make.matmul expression not found");
+    }
+
+    // get the inputs
+    int input_size = proto_node.input_size();
+    if (input_size != 2) {
+        std::ostringstream oss;
+        oss << "Invalid inputs of MatMul: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    // get the outputs
+    int output_size = proto_node.output_size();
+    if (output_size != 1) {
+        std::ostringstream oss;
+        oss << "Invalid outputs of MatMul: " << proto_node.name();
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    const std::string& matrixA_name = proto_node.input(0);
+    const std::string& matrixB_name = proto_node.input(1);
+    const std::string& output = proto_node.output(0);
+
+    auto matrixA_iter = expressions.find(matrixA_name);
+    if (matrixA_iter == expressions.end()) {
+        std::ostringstream oss;
+        oss << "Input not found, MatMul: " << proto_node.name() << " input: " << matrixA_name;
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    auto matrixB_iter = expressions.find(matrixB_name);
+    if (matrixB_iter == expressions.end()) {
+        std::ostringstream oss;
+        oss << "Input not found, MatMul: " << proto_node.name() << " input: " << matrixB_name;
+        return Status(StatusCode::INVALID_MODEL, oss.str());
+    }
+
+    // get the matrix A shape
+    std::vector<int64_t> matrixA_shape;
+    tvm::DataType matrixA_dtype;
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(matrixA_iter->second, matrixA_shape, matrixA_dtype);
+
+    // get the matrix B shape
+    std::vector<int64_t> matrixB_shape;
+    tvm::DataType matrixB_dtype;
+    tvm_cpp::relay_utils::infer_relay_shape_dtype(matrixB_iter->second, matrixB_shape, matrixB_dtype);
+
+    tvm::relay::Expr result_expr;
+    result_expr = (*matmul)(matrixA_iter->second, matrixB_iter->second, matrixB_shape[matrixB_shape.size() - 1],
+                            matrixA_dtype, false, false);
 
     auto status = fold_const(result_expr);
     if (!status.is_ok()) {

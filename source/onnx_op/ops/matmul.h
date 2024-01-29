@@ -16,6 +16,13 @@ public:
     virtual Status parse_op(const onnx::NodeProto& proto_node,
                             std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                             tvm::relay::Expr& relay) override;
+
+private:
+    Status parse_method_1(const onnx::NodeProto& proto_node, std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                    tvm::relay::Expr& relay);
+
+    Status parse_method_2(const onnx::NodeProto& proto_node, std::unordered_map<std::string, tvm::relay::Expr>& expressions,
+                    tvm::relay::Expr& relay);          
 };
 
 }    // namespace onnx_op
