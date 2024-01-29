@@ -31,6 +31,12 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.reshape expression not found");
     }
 
+    // get the boradcast_to relay function
+    const tvm::runtime::PackedFunc* broadcast_to = tvm::runtime::Registry::Get("relay.op._make.broadcast_to");
+    if (!broadcast_to) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.broadcast_to expression not found");
+    }
+
     // get the inputs
     int input_size = proto_node.input_size();
     if (input_size != 2) {
@@ -89,8 +95,14 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
 
         int batch_loop = std::max(matrixA_shape.size(), matrixB_shape.size()) - 2;
         for (int i = 0; i < batch_loop; ++i) {
-            output_batch.emplace_back(std::max(new_shape_A[i], new_shape_B[i]));
+            int64_t max_val = std::max(new_shape_A[i], new_shape_B[i]);
+            output_batch.emplace_back(max_val);
         }
+
+        std::vector<int64_t> broadcast_shape_A(output_batch);
+        std::vector<int64_t> broadcast_shape_B(output_batch);
+        broadcast_shape_A.insert(broadcast_shape_A.end(), matrixA_shape.end() - 2, matrixA_shape.end());
+        broadcast_shape_B.insert(broadcast_shape_B.end(), matrixB_shape.end() - 2, matrixB_shape.end());
 
         tvm::relay::Expr output_result;
         // reshape matrix A to rank 2 and do dense operation
@@ -100,6 +112,31 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
             tvm::relay::Expr transpose_B = (*transpose)(matrixB_iter->second);
             output_result = (*dense)(reshape_A, transpose_B, matrixB_shape[1], matrixA_dtype);
         } else {
+            tvm::relay::Expr A;
+            tvm::relay::Expr B;
+            tvm::runtime::Array<tvm::Integer> broadcast_shape_A_relay;
+            tvm::runtime::Array<tvm::Integer> broadcast_shape_B_relay;
+
+            if (broadcast_shape_A != matrixA_shape) {
+                std::for_each(broadcast_shape_A.begin(), broadcast_shape_A.end(),
+                              [&](int64_t val) { broadcast_shape_A_relay.push_back((int32_t)val); });
+                A = (*broadcast_to)(matrixA_iter->second, broadcast_shape_A_relay);
+            }
+
+            if (broadcast_shape_B != matrixB_shape) {
+                std::for_each(broadcast_shape_B.begin(), broadcast_shape_B.end(),
+                              [&](int64_t val) { broadcast_shape_B_relay.push_back((int32_t)val); });
+                B = (*broadcast_to)(matrixB_iter->second, broadcast_shape_B_relay);
+            }
+
+            //FIXME
+            tvm::runtime::Array<tvm::Integer> reshape_shape_A(
+                {-1, broadcast_shape_A_relay[-2], broadcast_shape_A_relay[-1]});
+            tvm::runtime::Array<tvm::Integer> reshape_shape_B(
+                {-1, broadcast_shape_B_relay[-2], broadcast_shape_B_relay[-1]});
+                
+            tvm::relay::Expr reshape_A = (*reshape)(A, reshape_shape_A, true);
+            tvm::relay::Expr reshape_B = (*reshape)(B, reshape_shape_B, true);
         }
     }
 
