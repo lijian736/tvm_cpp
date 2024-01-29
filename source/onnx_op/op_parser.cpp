@@ -6,13 +6,16 @@
 #include "ops/flatten.h"
 #include "ops/gemm.h"
 #include "ops/global_avg_pool.h"
+#include "ops/matmul.h"
 #include "ops/max_pool.h"
 #include "ops/mul.h"
 #include "ops/relu.h"
 #include "ops/reshape.h"
 #include "ops/resize.h"
+#include "ops/softmax.h"
+#include "ops/sqrt.h"
+#include "ops/squeeze.h"
 #include "ops/transpose.h"
-#include "ops/matmul.h"
 
 namespace tvm_cpp {
 namespace onnx_op {
@@ -42,9 +45,7 @@ Status IOnnxOpParser::fold_const(tvm::relay::Expr& expr) {
     return Status::ok();
 }
 
-OnnxOpParserRegister::OnnxOpParserRegister(){
-    this->register_all_supported_ops();
-}
+OnnxOpParserRegister::OnnxOpParserRegister() { this->register_all_supported_ops(); }
 
 OnnxOpParserRegister* OnnxOpParserRegister::get_instance() {
     static OnnxOpParserRegister instance;
@@ -74,6 +75,9 @@ void OnnxOpParserRegister::register_all_supported_ops() {
     this->register_op<FlattenParser>();
     this->register_op<GemmParser>();
     this->register_op<MatMulParser>();
+    this->register_op<SqueezeParser>();
+    this->register_op<SqrtParser>();
+    this->register_op<SoftmaxParser>();
 }
 
 }    // namespace onnx_op

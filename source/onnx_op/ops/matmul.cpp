@@ -132,7 +132,7 @@ Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
         tvm::relay::Expr output_result;
         // reshape matrix A to rank 2 and do dense operation
         if (matrixB_shape.size() == 2) {
-            tvm::runtime::Array<tvm::Integer> reshape_shape_A({-1, matrixA_shape[matrixA_shape.size() - 1]});
+            tvm::runtime::Array<tvm::Integer> reshape_shape_A({-1, (int)matrixA_shape[matrixA_shape.size() - 1]});
             tvm::relay::Expr reshape_A = (*reshape)(matrixA_iter->second, reshape_shape_A, true);
             tvm::relay::Expr transpose_B = (*transpose)(matrixB_iter->second);
             output_result = (*dense)(reshape_A, transpose_B, matrixB_shape[1], matrixA_dtype);
