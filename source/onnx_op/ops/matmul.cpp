@@ -25,6 +25,12 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::RUNTIME_ERROR, "relay.op.nn._make.dense expression not found");
     }
 
+    // get the Reshape relay function
+    const tvm::runtime::PackedFunc* reshape = tvm::runtime::Registry::Get("relay.op._make.reshape");
+    if (!reshape) {
+        return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.reshape expression not found");
+    }
+
     // get the inputs
     int input_size = proto_node.input_size();
     if (input_size != 2) {
@@ -84,6 +90,16 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
         int batch_loop = std::max(matrixA_shape.size(), matrixB_shape.size()) - 2;
         for (int i = 0; i < batch_loop; ++i) {
             output_batch.emplace_back(std::max(new_shape_A[i], new_shape_B[i]));
+        }
+
+        tvm::relay::Expr output_result;
+        // reshape matrix A to rank 2 and do dense operation
+        if (matrixB_shape.size() == 2) {
+            tvm::runtime::Array<tvm::Integer> reshape_shape_A({-1, matrixA_shape[matrixA_shape.size() - 1]});
+            tvm::relay::Expr reshape_A = (*reshape)(matrixA_iter->second, reshape_shape_A, true);
+            tvm::relay::Expr transpose_B = (*transpose)(matrixB_iter->second);
+            output_result = (*dense)(reshape_A, transpose_B, matrixB_shape[1], matrixA_dtype);
+        } else {
         }
     }
 
