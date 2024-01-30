@@ -16,6 +16,8 @@
 #include "ops/sqrt.h"
 #include "ops/squeeze.h"
 #include "ops/transpose.h"
+#include "ops/divide.h"
+#include "ops/subtract.h"
 
 namespace tvm_cpp {
 namespace onnx_op {
@@ -78,6 +80,8 @@ void OnnxOpParserRegister::register_all_supported_ops() {
     this->register_op<SqueezeParser>();
     this->register_op<SqrtParser>();
     this->register_op<SoftmaxParser>();
+    this->register_op<SubtractParser>();
+    this->register_op<DivParser>();
 }
 
 }    // namespace onnx_op
