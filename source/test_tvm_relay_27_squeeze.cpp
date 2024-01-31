@@ -33,15 +33,21 @@ int main(int argc, char** argv) {
     std::string input_name = "input_data";
     tvm::relay::Span input_span;
 
-    // the input tensor type, int32 and shape is {1, 5, 2, 1, 8}
-    tvm::relay::TensorType input_tensor_type{{1, 5, 2, 1, 8}, tvm::DataType::Int(32)};
+    // the input tensor type, int32 and shape is {1, 5, 2, 1, 8, 1}
+    tvm::relay::TensorType input_tensor_type{{1, 5, 2, 1, 8, 1}, tvm::DataType::Int(32)};
 
     // the input var expression
     tvm::relay::Var input_var = (*input_gen)(input_name, input_tensor_type, input_span);
 
     // Step 3. Compute the squeeze
-    tvm::runtime::Array<tvm::Integer> axes;
-    tvm::relay::Expr result_expr = (*squeeze)(input_var, axes);
+    bool specified = true;
+    tvm::runtime::Array<tvm::Integer> axes({0, -1});
+    tvm::relay::Expr result_expr;
+    if (specified) {
+        result_expr = (*squeeze)(input_var, axes);
+    } else {
+        result_expr = (*squeeze)(input_var, nullptr);
+    }
 
     // Step 4. Get the output information
     // type infer

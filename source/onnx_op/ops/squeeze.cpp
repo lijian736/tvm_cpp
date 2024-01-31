@@ -46,16 +46,13 @@ Status SqueezeParser::parse_op(const onnx::NodeProto& proto_node,
         return Status(StatusCode::INVALID_MODEL, oss.str());
     }
 
-    tvm::runtime::Array<tvm::Integer> axes;
+    tvm::relay::Expr result_expr;
+    
     if (input_size == 1) {
-        std::vector<int64_t> input_shape;
-        tvm::DataType input_dtype;
-        tvm_cpp::relay_utils::infer_relay_shape_dtype(input0_iter->second, input_shape, input_dtype);
-        int input_rank = input_shape.size();
-        for (int i = 0; i < input_rank; ++i) {
-            axes.push_back(i);
-        }
+        result_expr = (*squeeze)(input0_iter->second, nullptr);
     } else if (input_size == 2) {
+        tvm::runtime::Array<tvm::Integer> axes;
+
         const std::string& input1 = proto_node.input(1);
         auto input1_iter = expressions.find(input1);
         if (input1_iter == expressions.end()) {
@@ -92,9 +89,9 @@ Status SqueezeParser::parse_op(const onnx::NodeProto& proto_node,
         } else {
             return Status(StatusCode::NOT_IMPLEMENTED, "unsupported axes data type for Squeeze");
         }
-    }
 
-    tvm::relay::Expr result_expr = (*squeeze)(input0_iter->second, axes);
+        result_expr = (*squeeze)(input0_iter->second, axes);
+    }
 
     auto status = fold_const(result_expr);
     if (!status.is_ok()) {
