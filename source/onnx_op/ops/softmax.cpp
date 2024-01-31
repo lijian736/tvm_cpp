@@ -24,11 +24,7 @@ Status SoftmaxParser::parse_op(const onnx::NodeProto& proto_node,
     std::unordered_map<std::string, const onnx::AttributeProto*> attrs_map;
     get_attributes_map(proto_node, attrs_map);
 
-    int64_t axis;
-    auto status = get_attr<int64_t>("axis", &axis, attrs_map);
-    if (!status.is_ok()) {
-        return status;
-    }
+    int64_t axis = get_attr_or_default<int64_t>("axis", -1, attrs_map);
 
     // get the inputs
     int input_size = proto_node.input_size();
@@ -74,7 +70,7 @@ Status SoftmaxParser::parse_op(const onnx::NodeProto& proto_node,
     // Compute the Softmax
     tvm::relay::Expr result_expr = (*softmax)(input_iter->second, (int)axis);
 
-    status = fold_const(result_expr);
+    auto status = fold_const(result_expr);
     if (!status.is_ok()) {
         return status;
     }

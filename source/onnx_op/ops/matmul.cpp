@@ -14,19 +14,19 @@ Status MatMulParser::parse_op(const onnx::NodeProto& proto_node,
     }
 
     return parse_method_1(proto_node, expressions, relay);
-    return parse_method_2(proto_node, expressions, relay);
+    // return parse_method_2(proto_node, expressions, relay);
 }
 
 Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
                                     std::unordered_map<std::string, tvm::relay::Expr>& expressions,
                                     tvm::relay::Expr& relay) {
-    // transpose
+    // get the transpose relay function
     const tvm::runtime::PackedFunc* transpose = tvm::runtime::Registry::Get("relay.op._make.transpose");
     if (!transpose) {
         return Status(StatusCode::RUNTIME_ERROR, "relay.op._make.transpose expression not found");
     }
 
-    // get the dense function
+    // get the dense relay function
     const tvm::runtime::PackedFunc* dense = tvm::runtime::Registry::Get("relay.op.nn._make.dense");
     if (!dense) {
         return Status(StatusCode::RUNTIME_ERROR, "relay.op.nn._make.dense expression not found");
@@ -118,7 +118,7 @@ Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
             new_shape_A.insert(new_shape_A.begin(), matrixB_shape.size() - matrixA_shape.size(), 1);
         }
 
-        int batch_loop = std::max(matrixA_shape.size(), matrixB_shape.size()) - 2;
+        int batch_loop = (int)(std::max(matrixA_shape.size(), matrixB_shape.size()) - 2);
         for (int i = 0; i < batch_loop; ++i) {
             int64_t max_val = std::max(new_shape_A[i], new_shape_B[i]);
             output_batch.emplace_back(max_val);
@@ -134,7 +134,9 @@ Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
         if (matrixB_shape.size() == 2) {
             tvm::runtime::Array<tvm::Integer> reshape_shape_A({-1, (int)matrixA_shape[matrixA_shape.size() - 1]});
             tvm::relay::Expr reshape_A = (*reshape)(matrixA_iter->second, reshape_shape_A, true);
-            tvm::relay::Expr transpose_B = (*transpose)(matrixB_iter->second);
+
+            tvm::runtime::Array<tvm::Integer> axes({1, 0});
+            tvm::relay::Expr transpose_B = (*transpose)(matrixB_iter->second, axes);
             output_result = (*dense)(reshape_A, transpose_B, matrixB_shape[1], matrixA_dtype);
         } else {
             tvm::relay::Expr A;
@@ -205,6 +207,7 @@ Status MatMulParser::parse_method_1(const onnx::NodeProto& proto_node,
 
         tvm::relay::Expr tmp;
         if (matrixB_shape.size() == 1) {
+            // relay, position, number of new axes
             rhs = (*expand_dims)(matrixB_iter->second, 1, 1);
             axis.push_back(-1);
 
