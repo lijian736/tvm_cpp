@@ -31,15 +31,16 @@ int main(int argc, char** argv) {
     }
 
     std::string input_name = "input_data";
+    std::string exponent_name = "exponent_data";
     tvm::relay::Span input_span;
 
-    // the input tensor type, Int32 and shape is {1, 32, 320, 320}
-    tvm::relay::TensorType input_tensor_type{{32, 320, 320}, tvm::DataType::Int(32)};
-    tvm::relay::TensorType exponent_tensor_type{{2, 1, 2, 2}, tvm::DataType::Int(32)};
+    // the input tensor type, Int32 and shape is {5, 2, 3}
+    tvm::relay::TensorType input_tensor_type{{5, 2, 3}, tvm::DataType::Int(32)};
+    tvm::relay::TensorType exponent_tensor_type{{1, 2, 1}, tvm::DataType::Int(32)};
 
     // the input var expression
     tvm::relay::Var input_var = (*input_gen)(input_name, input_tensor_type, input_span);
-    tvm::relay::Var exponent_var = (*input_gen)(input_name, exponent_tensor_type, input_span);
+    tvm::relay::Var exponent_var = (*input_gen)(exponent_name, exponent_tensor_type, input_span);
 
     // Step 3. Compute the pow
     tvm::relay::Expr result_expr = (*pow_relay)(input_var, exponent_var);
