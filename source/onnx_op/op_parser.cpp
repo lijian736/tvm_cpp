@@ -18,6 +18,8 @@
 #include "ops/transpose.h"
 #include "ops/divide.h"
 #include "ops/subtract.h"
+#include "ops/pow.h"
+#include "ops/erf.h"
 
 namespace tvm_cpp {
 namespace onnx_op {
@@ -82,6 +84,8 @@ void OnnxOpParserRegister::register_all_supported_ops() {
     this->register_op<SoftmaxParser>();
     this->register_op<SubtractParser>();
     this->register_op<DivParser>();
+    this->register_op<PowParser>();
+    this->register_op<ErfParser>();
 }
 
 }    // namespace onnx_op
