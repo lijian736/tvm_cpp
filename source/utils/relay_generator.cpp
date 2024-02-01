@@ -92,10 +92,10 @@ Status generate_dead_code_module(tvm::IRModule& module) {
 
     // add bias
     int axis = 1;
-    conv_out_expr = (*bias_add)(conv_out_expr, bias_expr, axis);
+    tvm::relay::Expr conv_bias_out_expr = (*bias_add)(conv_out_expr, bias_expr, axis);
 
     // the convolution 2d expression
-    tvm::relay::Expr conv_expr = (*fold)(conv_out_expr, tvm::IRModule(), false);
+    tvm::relay::Expr conv_expr = (*fold)(conv_bias_out_expr, tvm::IRModule(), false);
 
     // the relu expression
     tvm::relay::Expr result_expr = (*relu)(conv_expr);
