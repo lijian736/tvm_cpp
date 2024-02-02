@@ -41,6 +41,14 @@ Status generate_fuse_op_module(tvm::IRModule& module);
  */
 Status generate_common_subexp_module(tvm::IRModule& module);
 
+/**
+ * @brief Generate an IRModule for remove-ununsed-functions pass
+ *
+ * @param module output parameter. the generated IRModule
+ * @return Status
+ */
+Status generate_remove_unused_fun_module(tvm::IRModule& module);
+
 }    // namespace relay_generator
 }    // namespace tvm_cpp
 
