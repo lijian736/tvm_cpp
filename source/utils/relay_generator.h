@@ -49,6 +49,14 @@ Status generate_common_subexp_module(tvm::IRModule& module);
  */
 Status generate_remove_unused_fun_module(tvm::IRModule& module);
 
+/**
+ * @brief Generate an relay for traverse pass
+ * 
+ * @param expr output parameter. the generated expr
+ * @return Status
+ */
+Status generate_traverse_expr(tvm::relay::Expr& expr);
+
 }    // namespace relay_generator
 }    // namespace tvm_cpp
 
