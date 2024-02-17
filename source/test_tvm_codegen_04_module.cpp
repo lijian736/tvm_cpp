@@ -70,6 +70,11 @@ int main(int argc, char** argv) {
     tvm::relay::Expr relu_expr = (*relu)(input_var);
     tvm::IRModule ir_mod = IRModule::FromExpr(relu_expr);
 
+    // create the default pass context
+    auto pass_ctx = PassContext::Create();
+    pass_ctx->opt_level = 1;
+    With<PassContext> scope(pass_ctx);
+
     // generate the relay module
     tvm::runtime::Module relay_module = (*build_module)();
     // get member functions
@@ -94,7 +99,8 @@ int main(int argc, char** argv) {
     // memory pool
     WorkspaceMemoryPools mem_pool;
     ConstantMemoryPools const_mem_pool;
-    build(ir_mod, raw_targets, target, executor, runtime, mem_pool, const_mem_pool, "test_module");
+
+    //build(ir_mod, raw_targets, target, executor, runtime, mem_pool, const_mem_pool, "test_module");
 
     return 0;
 }
