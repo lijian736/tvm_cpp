@@ -21,4 +21,4 @@ function(GENERATE_EXAMPLE name)
     target_compile_definitions(${name} PRIVATE DMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>)
 endfunction()
 
-GENERATE_EXAMPLE(example_01)
+GENERATE_EXAMPLE(example_01_relu)

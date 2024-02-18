@@ -15,7 +15,7 @@ using namespace tvm_cpp::utils;
 using namespace tvm_cpp::onnx_utils;
 
 int main(int argc, char** argv) {
-    std::cout << "example_01" << std::endl;
+    std::cout << "example_01_relu:" << std::endl;
 
     return 0;
 }
