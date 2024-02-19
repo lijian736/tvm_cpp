@@ -2,6 +2,7 @@
 #include <tvm/ir/module.h>
 #include <tvm/relay/executor.h>
 #include <tvm/relay/expr.h>
+#include <tvm/relay/op_strategy.h>
 #include <tvm/relay/runtime.h>
 #include <tvm/relay/transform.h>
 #include <tvm/runtime/memory.h>
@@ -18,6 +19,23 @@ using namespace tvm::relay;
 using namespace tvm::relay::transform;
 using namespace tvm::runtime;
 
+TVM_REGISTER_GLOBAL("relay.backend.lower_call")
+    .set_body_typed([](const relay::Call& call, const Array<te::Tensor>& inputs, const Target& target) {
+        static auto fstrategy = Op::GetAttrMap<relay::FTVMStrategy>("FTVMStrategy");
+        Op op = Downcast<Op>(call->op);
+        auto out_type = call->checked_type();
+        OpStrategy strategy = fstrategy[op](call->attrs, inputs, out_type, target);
+        auto impl = strategy->specializations[0]->implementations[0];
+        auto outs = impl.Compute(call->attrs, inputs, out_type);
+        auto f = tvm::runtime::Registry::Get("relay.backend._make_LoweredOutput");
+        if (!f) {
+            LOG(FATAL) << "relay.backend._make_LoweredOutput is not registered";
+        }
+
+        std::cout << "successfully" << std::endl;
+        return (*f)(outs, impl);
+    });
+
 int main(int argc, char** argv) {
     // get the module gen packaged function
     const tvm::runtime::PackedFunc* build_module = tvm::runtime::Registry::Get("relay.build_module._BuildModule");
@@ -26,10 +44,10 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // get the current target packed function
-    const tvm::runtime::PackedFunc* target_current = tvm::runtime::Registry::Get("target.TargetCurrent");
-    if (!target_current) {
-        std::cerr << "target.TargetCurrent not found" << std::endl;
+    // create target packed function
+    const tvm::runtime::PackedFunc* create_target = tvm::runtime::Registry::Get("target.Target");
+    if (!create_target) {
+        std::cerr << "target.Target not found" << std::endl;
         return -1;
     }
 
@@ -89,7 +107,7 @@ int main(int argc, char** argv) {
     tvm::runtime::PackedFunc get_devices = relay_module->GetFunction("get_devices");
     tvm::runtime::PackedFunc get_irmodule = relay_module->GetFunction("get_irmodule");
 
-    tvm::Target target = (*target_current)(true);
+    tvm::Target target = (*create_target)("llvm");
     const Array<Target> raw_targets{target};
 
     // create the executor
@@ -100,7 +118,7 @@ int main(int argc, char** argv) {
     WorkspaceMemoryPools mem_pool;
     ConstantMemoryPools const_mem_pool;
 
-    //build(ir_mod, raw_targets, target, executor, runtime, mem_pool, const_mem_pool, "test_module");
+    build(ir_mod, raw_targets, target, executor, runtime, mem_pool, const_mem_pool, "test_module");
 
     return 0;
 }
