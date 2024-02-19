@@ -17,7 +17,7 @@ find_library(TVM_RUNTIME_LIBRARY NAMES tvm_runtime PATHS ${CMAKE_SOURCE_DIR}/thi
 
 function(GENERATE_EXAMPLE name)
     add_executable(${name} ${name}.cpp ${CMAKE_SOURCE_DIR}/third_party/onnx_proto/onnx.proto3.pb.cc)
-    target_link_libraries(${name} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY} utils)
+    target_link_libraries(${name} PRIVATE ${Protobuf_LIBRARIES} ${TVM_LIBRARY} ${TVM_RUNTIME_LIBRARY} utils)
     target_compile_definitions(${name} PRIVATE DMLC_USE_LOGGING_LIBRARY=<tvm/runtime/logging.h>)
 endfunction()
 
