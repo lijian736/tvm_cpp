@@ -49,6 +49,13 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // Pretty print
+    const tvm::runtime::PackedFunc* pretty_print = tvm::runtime::Registry::Get("relay.ir.PrettyPrint");
+    if (!pretty_print) {
+        std::cerr << "relay.ir.PrettyPrint expression not found" << std::endl;
+        return -1;
+    }
+
     // Step 1. Generate the input tensor
 
     // the input tensor type, float32 and shape is {1, 1, 2, 2}
@@ -75,6 +82,9 @@ int main(int argc, char** argv) {
 
     // the graph relay ir module
     tvm::IRModule ir_module = IRModule::FromExpr(relu_main_func);
+
+    tvm::String ir_module_text = (*pretty_print)(ir_module);
+    std::cout << "the relu relay ir: " << std::endl << ir_module_text << std::endl;
 
     // Step 3. Create an Executor
     // Step 4. Do inference
