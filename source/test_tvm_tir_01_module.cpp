@@ -90,10 +90,31 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // buffer load
+    const tvm::runtime::PackedFunc* buffer_load = tvm::runtime::Registry::Get("tir.BufferLoad");
+    if (!buffer_load) {
+        std::cerr << "tir.BufferLoad expression not found" << std::endl;
+        return -1;
+    }
+
     // the float32 gen function
     const tvm::runtime::PackedFunc* float32_gen = tvm::runtime::Registry::Get("script.ir_builder.tir.Float32");
     if (!float32_gen) {
         std::cerr << "script.ir_builder.tir.Float32 expression not found" << std::endl;
+        return -1;
+    }
+
+    // add op
+    const tvm::runtime::PackedFunc* add_op = tvm::runtime::Registry::Get("tir._OpAdd");
+    if (!add_op) {
+        std::cerr << "tir._OpAdd expression not found" << std::endl;
+        return -1;
+    }
+
+    // buffer store
+    const tvm::runtime::PackedFunc* buffer_store = tvm::runtime::Registry::Get("script.ir_builder.tir.BufferStore");
+    if (!buffer_store) {
+        std::cerr << "script.ir_builder.tir.BufferStore expression not found" << std::endl;
         return -1;
     }
 
@@ -144,13 +165,28 @@ int main(int argc, char** argv) {
         // the for loop
         ForFrame serial = (*serial_gen)(PrimExpr(0), PrimExpr(8), nullptr);
         With<ForFrame> for_loop(std::move(serial));
+        {
+            BlockFrame block = (*block_gen)(String("B"), false);
+            With<BlockFrame> block_b(std::move(block));
+            {
+                Var it = (*axis_gen)(for_loop.get()->get()->doms[0], for_loop.get()->get()->vars[0], DataType::Int(32));
+                (*reads_gen)(Array<ObjectRef>{(*buffer_load)(buffer_a, Array<PrimExpr>{it}, tvm::Span())});
+                (*writes_gen)(Array<ObjectRef>{(*buffer_load)(buffer_b, Array<PrimExpr>{it}, tvm::Span())});
+                PrimExpr const_val = (*float32_gen)(PrimExpr(1.0f), false);
+
+                auto v1 = (*buffer_load)(buffer_b, Array<PrimExpr>{it}, tvm::Span());
+                auto v2 = (*buffer_load)(buffer_a, Array<PrimExpr>{it}, tvm::Span());
+                auto val = (*add_op)(v2, const_val, tvm::Span());
+                (*buffer_store)(buffer_b, val, Array<PrimExpr>{it});
+            }
+        }
     }
 
     PrimFunc prim_func_expr = ir_builder->Get<PrimFunc>();
     tvm::IRModule mod = IRModule::FromExpr(prim_func_expr);
 
     std::string result = (*script_gen)(mod, nullptr);
-    std::cout << "tir script: " << std::endl << result << std::endl;
+    std::cout << "tir script: " << std::endl << result << std::endl << std::endl;
 
     tvm::String result_text = (*pretty_print)(mod);
     std::cout << "tir text: " << std::endl << result_text << std::endl;
