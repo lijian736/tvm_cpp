@@ -27,6 +27,13 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // function return type
+    const tvm::runtime::PackedFunc* func_ret = tvm::runtime::Registry::Get("script.ir_builder.tir.FuncRet");
+    if (!func_ret) {
+        std::cerr << "script.ir_builder.tir.FuncRet expression not found" << std::endl;
+        return -1;
+    }
+
     // function attributes
     const tvm::runtime::PackedFunc* attrs_gen = tvm::runtime::Registry::Get("script.ir_builder.tir.FuncAttrs");
     if (!attrs_gen) {
@@ -136,12 +143,17 @@ int main(int argc, char** argv) {
     IRBuilder ir_builder;
     {
         With<IRBuilder> _0(ir_builder);
-        With<PrimFuncFrame> _1((*prim_func)(false));
+
+        PrimFuncFrame func_ = (*prim_func)(false);
+        With<PrimFuncFrame> _1(std::move(func_));
 
         // set function attributes
         Map<String, ObjectRef> attrs;
         attrs.Set("global_symbol", String("main"));
         attrs.Set("tir.noalias", Bool(true));
+
+        // set function return type
+        (*func_ret)(VoidType());
 
         // // set function attributes
         (*attrs_gen)(attrs);
