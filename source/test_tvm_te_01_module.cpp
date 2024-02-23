@@ -3,6 +3,7 @@
 #include <tvm/runtime/object.h>
 #include <tvm/runtime/registry.h>
 #include <tvm/support/with.h>
+#include <tvm/target/target.h>
 #include <tvm/te/operation.h>
 #include <tvm/te/tensor.h>
 #include <tvm/tir/expr.h>
@@ -35,6 +36,13 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // c code gen
+    const tvm::runtime::PackedFunc* code_gen_c = tvm::runtime::Registry::Get("target.build.c");
+    if (!code_gen_c) {
+        std::cerr << "target.build.c expression not found" << std::endl;
+        return -1;
+    }
+
     // generate input tensor: a
     Array<PrimExpr> input_shape{8};
     te::Tensor tensor_a = tvm::te::placeholder(input_shape, DataType::Float(32), "A");
@@ -64,5 +72,6 @@ int main(int argc, char** argv) {
     std::string result = (*script_gen)(mod, nullptr);
     std::cout << "tir script: " << std::endl << result << std::endl << std::endl;
 
+    runtime::Module module_c = (*code_gen_c)(mod, Target("c"));
     return 0;
 }

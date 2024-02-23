@@ -5,6 +5,7 @@
 #include <tvm/script/ir_builder/base.h>
 #include <tvm/script/ir_builder/tir/frame.h>
 #include <tvm/support/with.h>
+#include <tvm/target/target.h>
 #include <tvm/tir/function.h>
 #include <tvm/tir/var.h>
 
@@ -139,6 +140,13 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // c code gen
+    const tvm::runtime::PackedFunc* code_gen_c = tvm::runtime::Registry::Get("target.build.c");
+    if (!code_gen_c) {
+        std::cerr << "target.build.c expression not found" << std::endl;
+        return -1;
+    }
+
     // generate prim function frame
     IRBuilder ir_builder;
     {
@@ -202,5 +210,9 @@ int main(int argc, char** argv) {
 
     tvm::String result_text = (*pretty_print)(mod);
     std::cout << "tir text: " << std::endl << result_text << std::endl;
+
+    runtime::Module module_c = (*code_gen_c)(mod, Target("c"));
+    String source = module_c->GetSource();
+    std::cout << "Source code: " << std::endl << source << std::endl;
     return 0;
 }
