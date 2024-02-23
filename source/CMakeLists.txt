@@ -85,3 +85,5 @@ GENERATE_EXECUTABLE(test_tvm_codegen_03_runtime)
 GENERATE_EXECUTABLE(test_tvm_codegen_04_module)
 
 GENERATE_EXECUTABLE(test_tvm_tir_01_module)
+
+GENERATE_EXECUTABLE(test_tvm_te_01_module)
